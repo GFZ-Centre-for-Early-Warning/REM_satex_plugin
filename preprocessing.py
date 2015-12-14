@@ -27,9 +27,11 @@ import resources
 # Import the code for the dialog
 from preprocessing_dialog import SatExDialog
 import os.path
-import traceback
+import ogr
+#import qgis.core
 
 class Worker(PyQt4.QtCore.QObject):
+
     def __init__(self, ls_path,roi,out_fname, *args, **kwargs):
         PyQt4.QtCore.QObject.__init__(self, *args, **kwargs)
         self.ls_path = ls_path
@@ -42,31 +44,83 @@ class Worker(PyQt4.QtCore.QObject):
         self.ntasks = 10
 
     def run(self):
+        '''
+        Function running all preprocessing steps
+        '''
+        import utils
+        import traceback
+        import qgis.core
+        import ogr
+        import subprocess
+
+        self.status.emit('Task started!')
+        #find the number of different L8 scenes
+        #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
         try:
-            import utils
+            #instantiate utilities function
             utils = utils.utils()
-            self.status.emit('Task started!')
-            #find the number of different L8 scenes
-            scenes = utils.findFiles(self.ls_path,'*.TIF')
-
-            #scenes = ['_'.join(s.split('_')[:-1]) for s in scenes]
-        except:
-            self.status.emit('Failed')
-
-
-
-            #scenes = set(scenes)
+            scenes = set(['_'.join(s.split('_')[:-1]) for s in utils.findFiles(self.ls_path,'*.TIF')])
             #adjust number of tasks
-            #self.ntasks = self.ntasks*len(scenes)
-            #loop through all scenes
-            #for scene in scenes:
-            #    self.status.emit(scene)
-            #    self.calculate_progress()
-        #except:
-        #    self.error.emit(traceback.format_exc())
-        #    self.finished.emit('Could not finish processing')
-        #else:
-        #    self.finished.emit('Processing finished')
+            self.ntasks = self.ntasks*len(scenes)
+            self.status.emit('Found {} scenes.'.format(len(scenes)))
+            qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
+        except:
+            self.error.emit(traceback.format_exc())
+            self.status.emit('Task failed see log for details')
+            qgis.core.QgsMessageLog.logMessage(str('Found no Landsat 8 scenes in {}'.format(self.ls_path)))
+            self.finished.emit('Failed')
+
+        #check shapefile roi
+        try:
+            driver = ogr.GetDriverByName('ESRI Shapefile')
+            dataSource = driver.Open(self.roi,0)
+            layer = dataSource.GetLayer()
+            self.status.emit('Using {} as ROI'.format(self.roi))
+            qgis.core.QgsMessageLog.logMessage(str('Using {} as ROI'.format(self.roi)))
+        except:
+            self.error.emit(traceback.format_exc())
+            self.status.emit('Task failed see log for details')
+            qgis.core.QgsMessageLog.logMessage(str('Could not open {}'.format(self.roi)))
+            self.finished.emit('Failed')
+
+
+        #loop through all scenes
+        for scene in scenes:
+            #find all bands for scene exclude quality band BQA
+            try:
+                bands = [b for b in utils.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in s]
+                band_nr_test = bands[10]
+                self.status.emit('Found all 11 bands for scene {}'.format(scene))
+                qgis.core.QgsMessageLog.logMessage(str('Found all 11 bands for scene {} '.format(scene)))
+            except:
+                self.error.emit(traceback.format_exc())
+                self.status.emit('Task failed see log for details')
+                qgis.core.QgsMessageLog.logMessage(str('Could not find all 11 bands for scene {}'.format(scene)))
+                self.finished.emit('Failed')
+
+            #use gdalwarp to cut bands to roi
+            try:
+                for band in bands:
+                    cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',band,band[:-4]+'_satexTMP_ROI.TIF']
+                    subprocess.check_call(cmd)
+            except:
+                self.error.emit(traceback.format_exc())
+                self.status.emit('Task failed see log for details')
+                qgis.core.QgsMessageLog.logMessage(str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd))))
+                self.finished.emit('Failed')
+                utils.delete_tmps(self.ls_path)
+
+
+        #    #loop through all scenes
+        #    #for scene in scenes:
+        #    #    self.status.emit(scene)
+        #    #    self.calculate_progress()
+        ##except:
+        ##    self.error.emit(traceback.format_exc())
+        ##    self.finished.emit('Could not finish processing')
+        ##else:
+        ##    self.finished.emit('Processing finished')
+        #if len(scene): self.finished.emit('Task completed')
 
     def calculate_progress(self):
         self.processed = self.processed + 1
@@ -265,7 +319,7 @@ class SatEx:
         # show the dialog
         self.dlg.show()
         #get user edits
-        ls_path = self.dlg.lineEdit.text()
+        ls_path = self.dlg.lineEdit.text()+'/'
         roi = self.dlg.lineEdit_2.text()
         out_fname = self.dlg.lineEdit_3.text()
         # Run the dialog event loop
