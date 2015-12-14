@@ -58,8 +58,8 @@ class Worker(PyQt4.QtCore.QObject):
         #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
         try:
             #instantiate utilities function
-            utils = utils.utils()
-            scenes = set(['_'.join(s.split('_')[:-1]) for s in utils.findFiles(self.ls_path,'*.TIF')])
+            ut = utils.utils()
+            scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
             #adjust number of tasks
             self.ntasks = self.ntasks*len(scenes)
             self.status.emit('Found {} scenes.'.format(len(scenes)))
@@ -88,7 +88,8 @@ class Worker(PyQt4.QtCore.QObject):
         for scene in scenes:
             #find all bands for scene exclude quality band BQA
             try:
-                bands = [b for b in utils.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in s]
+                bands = [b for b in ut.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in b]
+                #check if there are 11 bands
                 band_nr_test = bands[10]
                 self.status.emit('Found all 11 bands for scene {}'.format(scene))
                 qgis.core.QgsMessageLog.logMessage(str('Found all 11 bands for scene {} '.format(scene)))
@@ -100,9 +101,13 @@ class Worker(PyQt4.QtCore.QObject):
 
             #use gdalwarp to cut bands to roi
             try:
+                #go through bands
                 for band in bands:
-                    cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',band,band[:-4]+'_satexTMP_ROI.TIF']
+                    cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
                     subprocess.check_call(cmd)
+                    self.status.emit('Cropped band {} to ROI'.format(band))
+                    qgis.core.QgsMessageLog.logMessage(str('Cropped band {} to ROI'.format(band)))
+                    self.calculate_progress()
             except:
                 self.error.emit(traceback.format_exc())
                 self.status.emit('Task failed see log for details')
@@ -110,11 +115,44 @@ class Worker(PyQt4.QtCore.QObject):
                 self.finished.emit('Failed')
                 utils.delete_tmps(self.ls_path)
 
+            # Layerstack
+            #otb_concatenate
+            try:
+                import otbApplication
+                #respect order B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11
+                in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands if '_B8' not in b]
+                in_files.sort()
+                #B10,B11 considered smaller --> resort
+                in_files = in_files[2:] + in_files[0:2]
+                out_file = str(self.ls_path+scene+'_satexTMP_mul.TIF')
+                #call otb wrapper
+                ut.otb_concatenate(in_files,out_file)
+                self.status.emit('Concatenated bands for pansharpening scene {}'.format(scene))
+                qgis.core.QgsMessageLog.logMessage(str('Concatenated bands for pansharpening scene {}'.format(scene)))
+            except:
+                self.error.emit(traceback.format_exc())
+                self.status.emit('Task failed see log for details')
+                qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file)))
+                self.finished.emit('Failed')
+                ut.delete_tmps(self.ls_path)
 
-        #    #loop through all scenes
-        #    #for scene in scenes:
-        #    #    self.status.emit(scene)
-        #    #    self.calculate_progress()
+            #Resample from 30x30 to 15x15
+            try:
+                in_file = out_file
+                out_file = str(in_file[:-4]+'_15.TIF')
+                #call otb wrapper
+                ut.otb_resample(in_file,out_file)
+                self.status.emit('Resampled layerstack for pansharpening scene {}'.format(scene))
+                qgis.core.QgsMessageLog.logMessage(str('Resampled layerstack for pansharpening scene {}'.format(scene)))
+            except:
+                self.error.emit(traceback.format_exc())
+                self.status.emit('Task failed see log for details')
+                qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB RigidTransformResample for scene: {}\nin_file: {}\nout_file: {}'.format(scene,in_file,out_file)))
+                self.finished.emit('Failed')
+                ut.delete_tmps(self.ls_path)
+
+
+
         ##except:
         ##    self.error.emit(traceback.format_exc())
         ##    self.finished.emit('Could not finish processing')
