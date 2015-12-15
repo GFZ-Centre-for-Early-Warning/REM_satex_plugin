@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>430</width>
-    <height>223</height>
+    <height>270</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,9 +22,9 @@
   <widget class="QDialogButtonBox" name="button_box">
    <property name="geometry">
     <rect>
-     <x>70</x>
+     <x>240</x>
      <y>180</y>
-     <width>341</width>
+     <width>171</width>
      <height>32</height>
     </rect>
    </property>
@@ -189,12 +189,12 @@ to return pansharpened raster</string>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
+     <x>284</x>
+     <y>180</y>
     </hint>
     <hint type="destinationlabel">
-     <x>20</x>
-     <y>20</y>
+     <x>344</x>
+     <y>46</y>
     </hint>
    </hints>
   </connection>
@@ -205,12 +205,12 @@ to return pansharpened raster</string>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>20</x>
-     <y>20</y>
+     <x>390</x>
+     <y>183</y>
     </hint>
     <hint type="destinationlabel">
-     <x>20</x>
-     <y>20</y>
+     <x>339</x>
+     <y>15</y>
     </hint>
    </hints>
   </connection>
