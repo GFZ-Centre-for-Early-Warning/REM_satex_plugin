@@ -66,7 +66,6 @@ class SatEx:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'SatEx')
         self.toolbar.setObjectName(u'SatEx')
-        self.windowOpen = False
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -181,29 +180,6 @@ class SatEx:
 
     def run(self):
         """Run method that performs all the real work"""
-        if not self.windowOpen:
-            dlg = SatExDialog(self.iface)
-            dlg.show()
-            self.windowOpen = True
-            dlg.exec_()
-            self.windowOpen = False
-       # # show the dialog
-       # self.dlg.show()
-       # #get user edits
-       # ls_path = self.dlg.lineEdit.text()+'/'
-       # roi = self.dlg.lineEdit_2.text()
-       # out_fname = self.dlg.lineEdit_3.text()
-       # # Run the dialog event loop
-       # result = self.dlg.exec_()
-       # # See if OK was pressed
-       # if result:
-       #     worker = self.worker = Worker(ls_path,roi,out_fname)
-       #     thread = self.thread = PyQt4.QtCore.QThread()
-       #     worker.moveToThread(thread)
-       #     thread.started.connect(worker.run)
-       #     worker.progress.connect(self.dlg.progressBar.setValue)
-       #     worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
-       #     worker.finished.connect(worker.deleteLater)
-       #     thread.finished.connect(thread.deleteLater)
-       #     worker.finished.connect(thread.quit)
-       #     thread.start()
+        self.dlg = SatExDialog(self.iface)
+        self.dlg.show()
+            #dlg.exec_()

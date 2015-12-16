@@ -23,7 +23,11 @@ class utils(object):
         '''
         Function to delete temporary files created during processing
         '''
-        cmd = ['rm',path+'/*satexTMP*']
+        files = [str(f) for f in self.findFiles(path,'*satexTMP*')]
+        if len(files) > 0:
+            for f in files:
+                os.remove(path+f)
+        return len(files)
 
     def otb_concatenate(self,in_files,out_file):
         '''

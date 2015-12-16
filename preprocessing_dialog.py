@@ -27,22 +27,41 @@ import PyQt4.QtGui
 import PyQt4.uic
 import PyQt4.QtCore
 
-FORM_CLASS, _ = PyQt4.uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'preprocessing_dialog_base.ui'))
+FORM_CLASS_PREPR, _ = PyQt4.uic.loadUiType(os.path.join(
+    os.path.dirname(__file__), 'uis/preprocessing.ui'))
 
 class Worker(PyQt4.QtCore.QObject):
     '''
-    Class providing a worker for the preprocessing
+    Class providing a worker
     '''
 
+    def __init__(self, *args, **kwargs):
+        PyQt4.QtCore.QObject.__init__(self, *args, **kwargs)
+
+    #Signals
     progress = PyQt4.QtCore.pyqtSignal(int)
     status = PyQt4.QtCore.pyqtSignal(str)
     error = PyQt4.QtCore.pyqtSignal(str)
     killed = PyQt4.QtCore.pyqtSignal()
     finished = PyQt4.QtCore.pyqtSignal(str)
 
+    def calculate_progress(self):
+        self.processed = self.processed + 1
+        percentage_new = (self.processed * 100) / self.ntasks
+        if percentage_new > self.percentage:
+            self.percentage = percentage_new
+            self.progress.emit(self.percentage)
+
+    def kill(self):
+        self.abort = True
+
+class Preprocess(Worker):
+    '''
+    Class providing a worker for the preprocessing
+    '''
+
     def __init__(self, ls_path,roi,out_fname, *args, **kwargs):
-        PyQt4.QtCore.QObject.__init__(self, *args, **kwargs)
+        super(Preprocess,self).__init__()
         self.ls_path = ls_path
         self.roi = roi
         self.out_fname = out_fname
@@ -71,33 +90,32 @@ class Worker(PyQt4.QtCore.QObject):
         #find the number of different L8 scenes
         #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
         try:
-            #instantiate utilities function
-            ut = utils.utils()
-            scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
-            #adjust number of tasks
-            self.ntasks = self.ntasks*len(scenes)
-            self.status.emit('Found {} scenes.'.format(len(scenes)))
-            qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
-        except:
-            self.error.emit(traceback.format_exc())
-            self.status.emit('Task failed see log for details')
-            qgis.core.QgsMessageLog.logMessage(str('Found no Landsat 8 scenes in {}'.format(self.ls_path)))
-            self.finished.emit('Failed')
+            try:
+                #instantiate utilities function
+                ut = utils.utils()
+                #delete any old tmp files that might be in the directory from a killed task
+                old=ut.delete_tmps(self.ls_path)
+                if old > 0: self.status.emit('Old *satexTMP* files were present. They were deleted.')
+                scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
+                #adjust number of tasks
+                self.ntasks = self.ntasks*len(scenes)
+                self.status.emit('Found {} scenes.'.format(len(scenes)))
+                qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
+            except Exception as e:
+                e = str('Found no Landsat 8 scene in {}'.format(self.ls_path))
+                raise Exception
 
-        #check shapefile roi
-        try:
-            driver = ogr.GetDriverByName('ESRI Shapefile')
-            dataSource = driver.Open(self.roi,0)
-            layer = dataSource.GetLayer()
-            self.status.emit('Using {} as ROI'.format(self.roi))
-            qgis.core.QgsMessageLog.logMessage(str('Using {} as ROI'.format(self.roi)))
-        except:
-            self.error.emit(traceback.format_exc())
-            self.status.emit('Task failed see log for details')
-            qgis.core.QgsMessageLog.logMessage(str('Could not open {}'.format(self.roi)))
-            self.finished.emit('Failed')
+            #check shapefile roi
+            try:
+                driver = ogr.GetDriverByName('ESRI Shapefile')
+                dataSource = driver.Open(self.roi,0)
+                layer = dataSource.GetLayer()
+                self.status.emit('Using {} as ROI'.format(self.roi))
+                qgis.core.QgsMessageLog.logMessage(str('Using {} as ROI'.format(self.roi)))
+            except Exception as e:
+                e = str('Could not open {}'.format(self.roi))
+                raise Exception
 
-        try:
             #loop through all scenes
             for scene in scenes:
                 #find all bands for scene exclude quality band BQA
@@ -105,17 +123,13 @@ class Worker(PyQt4.QtCore.QObject):
                     bands = [b for b in ut.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in b]
                     #check if there are 11 bands
                     if len(bands)!=11:
-                        self.status.emit('Found {} instead of 11 bands for scene {}'.format(len(bands),scene))
-                        qgis.core.QgsMessageLog.logMessage(str('Found {} instead of 11 bands for scene {}'.format(len(bands),scene)))
+                        e = str('Found {} instead of 11 bands for scene {}'.format(len(bands),scene))
                         raise Exception
                     else:
                         self.status.emit('Found all 11 bands for scene {}'.format(scene))
                         qgis.core.QgsMessageLog.logMessage(str('Found all 11 bands for scene {} '.format(scene)))
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not find all 11 bands for scene {}'.format(scene)))
-                    self.finished.emit('Failed')
+                except Exception as e:
+                    e = str('Could not find all 11 bands for scene {}'.format(scene))
                     raise Exception
 
                 #use gdalwarp to cut bands to roi
@@ -127,12 +141,8 @@ class Worker(PyQt4.QtCore.QObject):
                         cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
                         subprocess.check_call(cmd)
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd))))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
                     raise Exception
 
                 # Layerstack
@@ -148,12 +158,8 @@ class Worker(PyQt4.QtCore.QObject):
                     qgis.core.QgsMessageLog.logMessage(str('Concatenate bands for pansharpening scene {}'.format(scene)))
                     ut.otb_concatenate(in_files,out_file)
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file)))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
                     raise Exception
 
                 #Resample from 30x30 to 15x15
@@ -165,12 +171,8 @@ class Worker(PyQt4.QtCore.QObject):
                     qgis.core.QgsMessageLog.logMessage(str('Resampling layerstack for pansharpening scene {}'.format(scene)))
                     ut.otb_resample(in_file,out_file)
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB RigidTransformResample for scene: {}\nin_file: {}\nout_file: {}'.format(scene,in_file,out_file)))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute OTB RigidTransformResample for scene: {}\nin_file: {}\nout_file: {}'.format(scene,in_file,out_file))
                     raise Exception
 
                 #superimpose stack with B8 (make sure they are aligned)
@@ -183,12 +185,8 @@ class Worker(PyQt4.QtCore.QObject):
                     qgis.core.QgsMessageLog.logMessage(str('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene)))
                     ut.otb_superimpose(in_file_ref,in_file_inm,out_file)
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB Superimpose for scene: {}\nin_file_ref: {}\nin_file_inm: {}\nout_file: {}'.format(scene,in_file_ref,in_file_inm,out_file)))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute OTB Superimpose for scene: {}\nin_file_ref: {}\nin_file_inm: {}\nout_file: {}'.format(scene,in_file_ref,in_file_inm,out_file))
                     raise Exception
 
                 #Pansharpen scene
@@ -201,12 +199,8 @@ class Worker(PyQt4.QtCore.QObject):
                     qgis.core.QgsMessageLog.logMessage(str('Pansharpening layerstack of scene {}'.format(scene)))
                     ut.otb_pansharpen(in_file_pan,in_file_mul,out_file)
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB Pansharpening for scene: {}\nin_file_pan: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_pan,in_file_mul,out_file)))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute OTB Pansharpening for scene: {}\nin_file_pan: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_pan,in_file_mul,out_file))
                     raise Exception
 
                 #Split layerstack
@@ -219,12 +213,8 @@ class Worker(PyQt4.QtCore.QObject):
                     qgis.core.QgsMessageLog.logMessage(str('Splitting pansharpened layerstack of scene {}'.format(scene)))
                     ut.otb_split(in_file_mul,out_file)
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB SplitImage for scene: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_mul,out_file)))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute OTB SplitImage for scene: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_mul,out_file))
                     raise Exception
 
                 #Restack layers with superimposed B8
@@ -240,50 +230,38 @@ class Worker(PyQt4.QtCore.QObject):
                     self.status.emit('Concatenating pansharpened bands for scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Concatenating pansharpened bands for scene {}'.format(scene)))
                     self.calculate_progress()
-                except:
-                    self.error.emit(traceback.format_exc())
-                    self.status.emit('Task failed see log for details')
-                    qgis.core.QgsMessageLog.logMessage(str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file)))
-                    self.finished.emit('Failed')
-                    ut.delete_tmps(self.ls_path)
+                except Exception as e:
+                    e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
                     raise Exception
-        except:
-            self.error.emit(traceback.format_exc())
-            self.status.emit('Task failed see log for details')
-            self.finished.emit('Failed')
-            ut.delete_tmps(self.ls_path)
-        else:
+
+            # after all scenes were processed combine them to a virtual raster tile
             try:
-                cmd = ["gdalbuildvrt",self.out_fname]
+                cmd = ["gdalbuildvrt","overwrite",self.out_fname]
                 files = [f for f in ut.findFiles(self.ls_path,'*satexTMP_mul_pan.TIF')]
                 for f in files:
                     cmd.append(str(self.ls_path+f))
                 subprocess.check_call(cmd)
-                self.status.emit('Merged {} different scenes {} to ROI'.format(len(scenes),self.out_fname))
-                qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(scenes),self.out_fname)))
+                self.status.emit('Merged {} different scenes to {}'.format(len(files),self.out_fname))
+                qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(files),self.out_fname)))
                 self.calculate_progress()
-                ut.delete_tmps(self.ls_path)
-                self.finished.emit('Succeeded')
             except:
-                self.error.emit(traceback.format_exc())
-                self.status.emit('Task failed see log for details')
-                qgis.core.QgsMessageLog.logMessage(str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd))))
-                self.finished.emit('Failed')
-                ut.delete_tmps(self.ls_path)
-
-    def calculate_progress(self):
-        self.processed = self.processed + 1
-        percentage_new = (self.processed * 100) / self.ntasks
-        if percentage_new > self.percentage:
-            self.percentage = percentage_new
-            self.progress.emit(self.percentage)
-
-    def kill(self):
-        self.abort = True
+                e = str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd)))
+                raise Exception
+        except:
+            self.error.emit(e)
+            self.status.emit('**ERROR**: Task failed, see log for details')
+            self.finished.emit('Failed')
+            qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+            ut.delete_tmps(self.ls_path)
+        else:
+            self.status.emit('Task successfuly completed, see log for details')
+            self.finished.emit('Succeeded')
+            qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+            ut.delete_tmps(self.ls_path)
 
 
+class SatExDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
 
-class SatExDialog(PyQt4.QtGui.QDialog, FORM_CLASS):
     def __init__(self, iface, parent=None):
         """Constructor."""
         super(SatExDialog, self).__init__(parent)
@@ -327,19 +305,35 @@ class SatExDialog(PyQt4.QtGui.QDialog, FORM_CLASS):
         filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
         self.lineEdit_3.setText(filename)
 
+    #def updateProgress(self,value):
+    #    self.progressBar.setValue(value)
+
+    def updateTextbox(self,msg):
+        self.textBrowser.append(msg)
+
+    def workerError(self,error):
+        import qgis.core
+        qgis.core.QgsMessageLog.logMessage(str('Error:'+error))
+        #self.iface.messageBar().pushMessage("GFZ Satex","Processing failed. See log for details.",level=qgis.core.QgsMessageBar.CRITICAL,duration=5)
+
     @PyQt4.QtCore.pyqtSlot()
     def accept(self):
         self.updateForm()
-        worker = self.worker = Worker(self.ls_path,self.roi,self.out_fname)
-        thread = self.thread = PyQt4.QtCore.QThread()
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-        worker.progress.connect(self.progressBar.setValue)
-        worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
-        worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        worker.finished.connect(thread.quit)
-        thread.start()
+        self.worker = Preprocess(self.ls_path,self.roi,self.out_fname)
+        self.thread = PyQt4.QtCore.QThread()
+        #worker = Preprocess(self.ls_path,self.roi,self.out_fname)
+        #thread = PyQt4.QtCore.QThread(self)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.progress.connect(self.progressBar.setValue)
+      #  worker.progress.connect(self.updateProgress)
+      #  worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
+        self.worker.status.connect(self.updateTextbox)
+        self.worker.error.connect(self.workerError)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.thread.quit)
+        self.thread.start()
 
     @PyQt4.QtCore.pyqtSlot()
     def reject(self):
