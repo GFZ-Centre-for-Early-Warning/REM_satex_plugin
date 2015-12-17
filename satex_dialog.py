@@ -27,8 +27,6 @@ import PyQt4.QtGui
 import PyQt4.uic
 import PyQt4.QtCore
 
-FORM_CLASS_PREPR, _ = PyQt4.uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'uis/preprocessing.ui'))
 
 class Worker(PyQt4.QtCore.QObject):
     '''
@@ -259,12 +257,98 @@ class Preprocess(Worker):
             qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
             ut.delete_tmps(self.ls_path)
 
+class Classify(Worker):
+    '''
+    Class providing a worker for the classification
+    '''
+    import os
 
-class SatExDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
+    def __init__(self, raster,in_train,out_fname, *args, **kwargs):
+        super(Classify,self).__init__()
+
+        if '.vrt' not in raster:
+            if '.TIF' not in raster:
+                raise IOError('Input raster should be .TIF or .vrt')
+            else:
+                self.raster = raster
+        else:
+        self.raster = raster
+
+        if '.shp' not in in_train:
+            raise IOError('Input train should be .shp')
+        else:
+            self.in_train = in_train
+
+        self.out_fname = out_fname
+        self.processed = 0
+        self.percentage = 0
+        self.abort = False
+        #TODO:fix
+        self.ntasks = 8
+        self.path = os.path.dirname(self.raster)+'/'
+
+    def run(self):
+        '''
+        Function running all classification steps
+        '''
+        import utils
+        import traceback
+        import qgis.core
+        import ogr
+        import subprocess
+
+        try:
+            import otbApplication
+        except:
+            print 'Plugin requires installation of OrfeoToolbox'
+
+        self.status.emit('Task started!')
+        try:
+            ut = utils.utils()
+            #generate image statistics
+            try:
+                stats = str(self.path+self.raster[:-4]+'_stats.xml')
+                ut.otb_image_statistics(self.raster,stats)
+                self.status.emit('Calculated image statistics {} for {}'.format(stats,raster))
+                qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(stats,raster)))
+                self.calculate_progress()
+            except:
+                e = str('Could not execute OTB Image Statistics on: {}'.format(raster))
+                raise Exception
+            #split training dataset in 80% train 20% testing
+            try:
+                error,train,test = ut.split_train(self.in_train)
+                if error != '':
+                    raise Exception
+                self.status.emit('Calculated image statistics {} for {}'.format(stats,raster))
+                qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(stats,raster)))
+                self.calculate_progress()
+            except:
+                e=error
+                raise Exception
+        except:
+            self.error.emit(e)
+            self.status.emit('**ERROR**: Task failed, see log for details')
+            self.finished.emit('Failed')
+            #qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+            #ut.delete_tmps(self.ls_path)
+        else:
+            self.status.emit('Task successfuly completed, see log for details')
+            self.finished.emit('Succeeded')
+            #qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+            #ut.delete_tmps(self.ls_path)
+
+FORM_CLASS_PREPR, _ = PyQt4.uic.loadUiType(os.path.join(
+    os.path.dirname(__file__), 'uis/preprocessing.ui'))
+
+FORM_CLASS_CLASS, _ = PyQt4.uic.loadUiType(os.path.join(
+    os.path.dirname(__file__), 'uis/classification.ui'))
+
+class PreprocessingDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
 
     def __init__(self, iface, parent=None):
         """Constructor."""
-        super(SatExDialog, self).__init__(parent)
+        super(PreprocessingDialog, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
         # self.<objectname>, and you can use autoconnect slots - see
@@ -320,6 +404,85 @@ class SatExDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
     def accept(self):
         self.updateForm()
         self.worker = Preprocess(self.ls_path,self.roi,self.out_fname)
+        self.thread = PyQt4.QtCore.QThread()
+        #worker = Preprocess(self.ls_path,self.roi,self.out_fname)
+        #thread = PyQt4.QtCore.QThread(self)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.progress.connect(self.progressBar.setValue)
+      #  worker.progress.connect(self.updateProgress)
+      #  worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
+        self.worker.status.connect(self.updateTextbox)
+        self.worker.error.connect(self.workerError)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.thread.quit)
+        self.thread.start()
+
+    @PyQt4.QtCore.pyqtSlot()
+    def reject(self):
+        PyQt4.QtGui.QDialog.reject(self)
+
+class ClassificationDialog(PyQt4.QtGui.QDialog, FORM_CLASS_CLASS):
+
+    def __init__(self, iface, parent=None):
+        """Constructor."""
+        super(ClassificationDialog, self).__init__(parent)
+        # Set up the user interface from Designer.
+        # After setupUI you can access any designer object by doing
+        # self.<objectname>, and you can use autoconnect slots - see
+        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
+        # #widgets-and-dialogs-with-auto-connect
+        self.setupUi(self)
+        self.iface = iface
+
+        #interactions
+        self.lineEdit.clear()
+        self.pushButton.clicked.connect(self.select_input_pan)
+        self.lineEdit_2.clear()
+        self.pushButton_2.clicked.connect(self.select_training)
+        self.lineEdit_3.clear()
+        self.pushButton_3.clicked.connect(self.select_output_name)
+        self.progressBar.reset()
+
+        #TODO:defaults for development
+        self.lineEdit.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        self.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
+        self.lineEdit_3.setText()
+
+    def updateForm(self):
+        #get user edits
+        self.raster = self.lineEdit.text()+'/'
+        self.train = self.lineEdit_2.text()
+        self.out_fname = self.lineEdit_3.text()
+
+    def select_input_pan(self):
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select input pansharpened scene ","","")
+        self.lineEdit.setText(filename)
+
+    def select_training(self):
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select training vector ","","*.shp")
+        self.lineEdit_2.setText(filename)
+
+    def select_output_name(self):
+        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
+        self.lineEdit_3.setText(filename)
+
+    #def updateProgress(self,value):
+    #    self.progressBar.setValue(value)
+
+    def updateTextbox(self,msg):
+        self.textBrowser.append(msg)
+
+    def workerError(self,error):
+        import qgis.core
+        qgis.core.QgsMessageLog.logMessage(str('Error:'+error))
+        #self.iface.messageBar().pushMessage("GFZ Satex","Processing failed. See log for details.",level=qgis.core.QgsMessageBar.CRITICAL,duration=5)
+
+    @PyQt4.QtCore.pyqtSlot()
+    def accept(self):
+        self.updateForm()
+        self.worker = Classify(self.raster,self.train,self.out_fname)
         self.thread = PyQt4.QtCore.QThread()
         #worker = Preprocess(self.ls_path,self.roi,self.out_fname)
         #thread = PyQt4.QtCore.QThread(self)

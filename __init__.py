@@ -31,5 +31,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .preprocessing import SatEx
+    from .satex import SatEx
     return SatEx(iface)

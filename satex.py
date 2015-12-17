@@ -25,7 +25,7 @@ import PyQt4.QtGui
 # Initialize Qt resources from file resources.py
 import resources
 # Import the code for the dialog
-from preprocessing_dialog import SatExDialog
+from satex_dialog import PreprocessingDialog, ClassificationDialog
 import os.path
 
 class SatEx:
@@ -57,8 +57,6 @@ class SatEx:
             if PyQt4.QtCore.qVersion() > '4.3.3':
                 PyQt4.QtCore.QCoreApplication.installTranslator(self.translator)
 
-       # # Create the dialog (after translation) and keep reference
-       # self.dlg = SatExDialog()
 
         # Declare instance attributes
         self.actions = []
@@ -162,8 +160,14 @@ class SatEx:
         icon_path = ':/plugins/SatEx/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'SatEx'),
-            callback=self.run,
+            text=self.tr(u'Preprocessing'),
+            callback=self.run_preprocessing,
+            parent=self.iface.mainWindow())
+        icon_path = ':/plugins/SatEx/icon.png'
+        self.add_action(
+            icon_path,
+            text=self.tr(u'Classification'),
+            callback=self.run_classification,
             parent=self.iface.mainWindow())
 
 
@@ -178,8 +182,13 @@ class SatEx:
         del self.toolbar
 
 
-    def run(self):
+    def run_preprocessing(self):
         """Run method that performs all the real work"""
-        self.dlg = SatExDialog(self.iface)
+        self.dlg = PreprocessingDialog(self.iface)
+        self.dlg.setModal(False)
         self.dlg.show()
-            #dlg.exec_()
+    def run_classification(self):
+        """Run method that performs all the real work"""
+        self.dlg = ClassificationDialog(self.iface)
+        self.dlg.setModal(False)
+        self.dlg.show()
