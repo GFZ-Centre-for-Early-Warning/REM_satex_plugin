@@ -40,30 +40,27 @@ class Worker(PyQt4.QtCore.QObject):
     #Signals
     progress = PyQt4.QtCore.pyqtSignal(int)
     status = PyQt4.QtCore.pyqtSignal(str)
-    error = PyQt4.QtCore.pyqtSignal(Exception, basestring)
+    error = PyQt4.QtCore.pyqtSignal(str)
     killed = PyQt4.QtCore.pyqtSignal()
     finished = PyQt4.QtCore.pyqtSignal(str)
 
-    #def calculate_progress(self):
-    #    self.processed = self.processed + 1
-    #    percentage_new = (self.processed * 100) / self.ntasks
-    #    if percentage_new > self.percentage:
-    #        self.percentage = percentage_new
-    #        self.progress.emit(self.percentage)
+    def calculate_progress(self):
+        self.processed = self.processed + 1
+        percentage_new = (self.processed * 100) / self.ntasks
+        if percentage_new > self.percentage:
+            self.percentage = percentage_new
+            self.progress.emit(self.percentage)
 
     def kill(self):
         self.abort = True
 
-#class Preprocess(Worker):
-class Preprocess(PyQt4.QtCore.QObject):
+class Preprocess(Worker):
     '''
     Class providing a worker for the preprocessing
     '''
 
     def __init__(self, ls_path,roi,out_fname, *args, **kwargs):
-        PyQt4.QtCore.QObject.__init__(self, *args, **kwargs)
-        self.killed = False
-        #super(Preprocess,self).__init__()
+        super(Preprocess,self).__init__()
         self.ls_path = ls_path
         self.roi = roi
         self.out_fname = out_fname
@@ -71,16 +68,6 @@ class Preprocess(PyQt4.QtCore.QObject):
         self.percentage = 0
         #TODO:fix
         self.ntasks = 8
-
-    #Signals
-    progress = PyQt4.QtCore.pyqtSignal(int)
-    status = PyQt4.QtCore.pyqtSignal(str)
-    error = PyQt4.QtCore.pyqtSignal(str)
-    killed = PyQt4.QtCore.pyqtSignal()
-    finished = PyQt4.QtCore.pyqtSignal(str)
-
-    def kill(self):
-        self.abort = True
 
     def run(self):
         '''
@@ -108,7 +95,7 @@ class Preprocess(PyQt4.QtCore.QObject):
                 ut = utils.utils()
                 #delete any old tmp files that might be in the directory from a killed task
                 old=ut.delete_tmps(self.ls_path)
-#                if old > 0: #self.status.emit('Old *satexTMP* files were present. They were deleted.')
+                if old > 0: qgis.core.QgsMessageLog.logMessage('Old *satexTMP* files were present. They were deleted.')
                 scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
                 #adjust number of tasks
                 self.ntasks = self.ntasks*len(scenes)
@@ -152,6 +139,7 @@ class Preprocess(PyQt4.QtCore.QObject):
                         #self.status.emit('Cropping band {} to ROI'.format(band))
                         qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
                         cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
+                        subprocess.check_call(cmd)
                     self.calculate_progress()
                 except Exception as e:
                     e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
@@ -309,7 +297,8 @@ class Classify(Worker):
         import traceback
         import qgis.core
         import ogr
-        import subprocess
+        #import subprocess
+        import os
 
         try:
             import otbApplication
@@ -344,13 +333,14 @@ class Classify(Worker):
             self.error.emit(e)
             #self.status.emit('**ERROR**: Task failed, see log for details')
             self.finished.emit('Failed')
-            #qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
-            #ut.delete_tmps(self.ls_path)
+            qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+            ut.delete_tmps(self.ls_path)
         else:
             #self.status.emit('Task successfuly completed, see log for details')
             self.finished.emit('Succeeded')
-            #qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
-            #ut.delete_tmps(self.ls_path)
+            qgis.core.QgsMessageLog.logMessage(str('Processing completed'))
+            qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+            ut.delete_tmps(self.ls_path)
 
 FORM_CLASS_PREPR, _ = PyQt4.uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'uis/preprocessing.ui'))

@@ -1,7 +1,6 @@
 # Function in use for the plugin
 import os
 import fnmatch
-import subprocess
 import otbApplication
 
 class utils(object):
