@@ -57,6 +57,11 @@ class SatEx:
             if PyQt4.QtCore.qVersion() > '4.3.3':
                 PyQt4.QtCore.QCoreApplication.installTranslator(self.translator)
 
+        try:
+            import otbApplication
+        except:
+            print 'Error: Plugin requires installation of OrfeoToolbox'
+            raise RuntimeError
 
         # Declare instance attributes
         self.actions = []
@@ -64,6 +69,24 @@ class SatEx:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'SatEx')
         self.toolbar.setObjectName(u'SatEx')
+
+        #create dialogs and keep reference
+        self.Pdlg = PreprocessingDialog()
+#        self.Cdlg = ClassificationDialog()
+
+        #gui interactions
+        self.Pdlg.lineEdit.clear()
+        self.Pdlg.pushButton.clicked.connect(self.select_input_raster)
+        self.Pdlg.lineEdit_2.clear()
+        self.Pdlg.pushButton_2.clicked.connect(self.select_roi)
+        self.Pdlg.lineEdit_3.clear()
+        self.Pdlg.pushButton_3.clicked.connect(self.select_output_name)
+        self.Pdlg.progressBar.reset()
+
+        #TODO:defaults for development
+        self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
+        self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
+        self.Pdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -181,14 +204,43 @@ class SatEx:
         # remove the toolbar
         del self.toolbar
 
+    def updatePForm(self):
+        #get user edits
+        self.ls_path = self.Pdlg.lineEdit.text()+'/'
+        self.roi = self.Pdlg.lineEdit_2.text()
+        self.out_fname = self.Pdlg.lineEdit_3.text()
+
+    def select_input_raster(self):
+        dirname = PyQt4.QtGui.QFileDialog.getExistingDirectory(self, "Select input directory ","",PyQt4.QtGui.QFileDialog.ShowDirsOnly)
+        self.Pdlg.lineEdit.setText(dirname)
+
+    def select_roi(self):
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select region of interest ","","*.shp")
+        self.Pdlg.lineEdit_2.setText(filename)
+
+    def select_output_name(self):
+        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
+        self.Pdlg.lineEdit_3.setText(filename)
+
+    #def updateProgress(self,value):
+    #    self.progressBar.setValue(value)
+
+    def updateTextbox(self,msg):
+        self.textBrowser.append(msg)
 
     def run_preprocessing(self):
         """Run method that performs all the real work"""
-        self.dlg = PreprocessingDialog(self.iface)
-        self.dlg.setModal(False)
-        self.dlg.show()
+        #self.Pdlg.setModal(False)
+        self.Pdlg.show()
+
+        #Dialog event loop
+        result = self.Pdlg.exec_()
+        if result:
+            #Get user edits
+            self.updatePForm()
+            self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
+
     def run_classification(self):
         """Run method that performs all the real work"""
-        self.dlg = ClassificationDialog(self.iface)
-        self.dlg.setModal(False)
-        self.dlg.show()
+        self.Cdlg.setModal(False)
+        self.Cdlg.show()

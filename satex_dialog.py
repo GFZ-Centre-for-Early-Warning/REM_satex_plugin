@@ -35,6 +35,42 @@ class Worker(PyQt4.QtCore.QObject):
 
     def __init__(self, *args, **kwargs):
         PyQt4.QtCore.QObject.__init__(self, *args, **kwargs)
+        self.killed = False
+
+    #Signals
+    progress = PyQt4.QtCore.pyqtSignal(int)
+    status = PyQt4.QtCore.pyqtSignal(str)
+    error = PyQt4.QtCore.pyqtSignal(Exception, basestring)
+    killed = PyQt4.QtCore.pyqtSignal()
+    finished = PyQt4.QtCore.pyqtSignal(str)
+
+    #def calculate_progress(self):
+    #    self.processed = self.processed + 1
+    #    percentage_new = (self.processed * 100) / self.ntasks
+    #    if percentage_new > self.percentage:
+    #        self.percentage = percentage_new
+    #        self.progress.emit(self.percentage)
+
+    def kill(self):
+        self.abort = True
+
+#class Preprocess(Worker):
+class Preprocess(PyQt4.QtCore.QObject):
+    '''
+    Class providing a worker for the preprocessing
+    '''
+
+    def __init__(self, ls_path,roi,out_fname, *args, **kwargs):
+        PyQt4.QtCore.QObject.__init__(self, *args, **kwargs)
+        self.killed = False
+        #super(Preprocess,self).__init__()
+        self.ls_path = ls_path
+        self.roi = roi
+        self.out_fname = out_fname
+        self.processed = 0
+        self.percentage = 0
+        #TODO:fix
+        self.ntasks = 8
 
     #Signals
     progress = PyQt4.QtCore.pyqtSignal(int)
@@ -43,31 +79,8 @@ class Worker(PyQt4.QtCore.QObject):
     killed = PyQt4.QtCore.pyqtSignal()
     finished = PyQt4.QtCore.pyqtSignal(str)
 
-    def calculate_progress(self):
-        self.processed = self.processed + 1
-        percentage_new = (self.processed * 100) / self.ntasks
-        if percentage_new > self.percentage:
-            self.percentage = percentage_new
-            self.progress.emit(self.percentage)
-
     def kill(self):
         self.abort = True
-
-class Preprocess(Worker):
-    '''
-    Class providing a worker for the preprocessing
-    '''
-
-    def __init__(self, ls_path,roi,out_fname, *args, **kwargs):
-        super(Preprocess,self).__init__()
-        self.ls_path = ls_path
-        self.roi = roi
-        self.out_fname = out_fname
-        self.processed = 0
-        self.percentage = 0
-        self.abort = False
-        #TODO:fix
-        self.ntasks = 8
 
     def run(self):
         '''
@@ -84,7 +97,9 @@ class Preprocess(Worker):
         except:
             print 'Plugin requires installation of OrfeoToolbox'
 
-        self.status.emit('Task started!')
+        self.finished.emit('done')
+
+        #self.status.emit('Task started!')
         #find the number of different L8 scenes
         #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
         try:
@@ -93,11 +108,11 @@ class Preprocess(Worker):
                 ut = utils.utils()
                 #delete any old tmp files that might be in the directory from a killed task
                 old=ut.delete_tmps(self.ls_path)
-                if old > 0: self.status.emit('Old *satexTMP* files were present. They were deleted.')
+#                if old > 0: #self.status.emit('Old *satexTMP* files were present. They were deleted.')
                 scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
                 #adjust number of tasks
                 self.ntasks = self.ntasks*len(scenes)
-                self.status.emit('Found {} scenes.'.format(len(scenes)))
+                #self.status.emit('Found {} scenes.'.format(len(scenes)))
                 qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
             except Exception as e:
                 e = str('Found no Landsat 8 scene in {}'.format(self.ls_path))
@@ -108,7 +123,7 @@ class Preprocess(Worker):
                 driver = ogr.GetDriverByName('ESRI Shapefile')
                 dataSource = driver.Open(self.roi,0)
                 layer = dataSource.GetLayer()
-                self.status.emit('Using {} as ROI'.format(self.roi))
+                #self.status.emit('Using {} as ROI'.format(self.roi))
                 qgis.core.QgsMessageLog.logMessage(str('Using {} as ROI'.format(self.roi)))
             except Exception as e:
                 e = str('Could not open {}'.format(self.roi))
@@ -124,7 +139,7 @@ class Preprocess(Worker):
                         e = str('Found {} instead of 11 bands for scene {}'.format(len(bands),scene))
                         raise Exception
                     else:
-                        self.status.emit('Found all 11 bands for scene {}'.format(scene))
+                        #self.status.emit('Found all 11 bands for scene {}'.format(scene))
                         qgis.core.QgsMessageLog.logMessage(str('Found all 11 bands for scene {} '.format(scene)))
                 except Exception as e:
                     e = str('Could not find all 11 bands for scene {}'.format(scene))
@@ -134,10 +149,9 @@ class Preprocess(Worker):
                 try:
                     #go through bands
                     for band in bands:
-                        self.status.emit('Cropping band {} to ROI'.format(band))
+                        #self.status.emit('Cropping band {} to ROI'.format(band))
                         qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
                         cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
-                        subprocess.check_call(cmd)
                     self.calculate_progress()
                 except Exception as e:
                     e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
@@ -152,7 +166,7 @@ class Preprocess(Worker):
                     in_files = in_files[2:] + in_files[0:2]
                     out_file = str(self.ls_path+scene+'_satexTMP_mul.TIF')
                     #call otb wrapper
-                    self.status.emit('Concatenating bands for pansharpening scene {}'.format(scene))
+                    #self.status.emit('Concatenating bands for pansharpening scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Concatenate bands for pansharpening scene {}'.format(scene)))
                     ut.otb_concatenate(in_files,out_file)
                     self.calculate_progress()
@@ -165,7 +179,7 @@ class Preprocess(Worker):
                     in_file = out_file
                     out_file = str(in_file[:-4]+'_15.TIF')
                     #call otb wrapper
-                    self.status.emit('Resampling layerstack for pansharpening scene {}'.format(scene))
+                    #self.status.emit('Resampling layerstack for pansharpening scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Resampling layerstack for pansharpening scene {}'.format(scene)))
                     ut.otb_resample(in_file,out_file)
                     self.calculate_progress()
@@ -179,7 +193,7 @@ class Preprocess(Worker):
                     in_file_inm = str(self.ls_path+scene+'_B8_satexTMP_ROI.TIF')
                     out_file = str(self.ls_path+scene+'_B8_satexTMP_SI.TIF')
                     #call otb wrapper
-                    self.status.emit('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene))
+                    #self.status.emit('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene)))
                     ut.otb_superimpose(in_file_ref,in_file_inm,out_file)
                     self.calculate_progress()
@@ -193,7 +207,7 @@ class Preprocess(Worker):
                     in_file_mul = in_file_ref
                     out_file = str(self.ls_path+scene+'_satexTMP_pan.TIF')
                     #call otb wrapper
-                    self.status.emit('Pansharpening layerstack of scene {}'.format(scene))
+                    #self.status.emit('Pansharpening layerstack of scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Pansharpening layerstack of scene {}'.format(scene)))
                     ut.otb_pansharpen(in_file_pan,in_file_mul,out_file)
                     self.calculate_progress()
@@ -207,7 +221,7 @@ class Preprocess(Worker):
                     #pattern for output bands <pattern>_x.TIF
                     out_file = str(self.ls_path+scene+'_satexTMP_pan.TIF')
                     #call otb wrapper
-                    self.status.emit('Splitting pansharpened layerstack of scene {}'.format(scene))
+                    #self.status.emit('Splitting pansharpened layerstack of scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Splitting pansharpened layerstack of scene {}'.format(scene)))
                     ut.otb_split(in_file_mul,out_file)
                     self.calculate_progress()
@@ -225,7 +239,7 @@ class Preprocess(Worker):
                     out_file = str(self.ls_path+scene+'_satexTMP_mul_pan.TIF')
                     #call otb wrapper
                     ut.otb_concatenate(in_files,out_file)
-                    self.status.emit('Concatenating pansharpened bands for scene {}'.format(scene))
+                    #self.status.emit('Concatenating pansharpened bands for scene {}'.format(scene))
                     qgis.core.QgsMessageLog.logMessage(str('Concatenating pansharpened bands for scene {}'.format(scene)))
                     self.calculate_progress()
                 except Exception as e:
@@ -239,7 +253,7 @@ class Preprocess(Worker):
                 for f in files:
                     cmd.append(str(self.ls_path+f))
                 subprocess.check_call(cmd)
-                self.status.emit('Merged {} different scenes to {}'.format(len(files),self.out_fname))
+                #self.status.emit('Merged {} different scenes to {}'.format(len(files),self.out_fname))
                 qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(files),self.out_fname)))
                 self.calculate_progress()
             except:
@@ -247,15 +261,15 @@ class Preprocess(Worker):
                 raise Exception
         except:
             self.error.emit(e)
-            self.status.emit('**ERROR**: Task failed, see log for details')
+            #self.status.emit('**ERROR**: Task failed, see log for details')
             self.finished.emit('Failed')
             qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
-            ut.delete_tmps(self.ls_path)
+            #ut.delete_tmps(self.ls_path)
         else:
-            self.status.emit('Task successfuly completed, see log for details')
+            #self.status.emit('Task successfuly completed, see log for details')
             self.finished.emit('Succeeded')
             qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
-            ut.delete_tmps(self.ls_path)
+           # ut.delete_tmps(self.ls_path)
 
 class Classify(Worker):
     '''
@@ -272,7 +286,7 @@ class Classify(Worker):
             else:
                 self.raster = raster
         else:
-        self.raster = raster
+            self.raster = raster
 
         if '.shp' not in in_train:
             raise IOError('Input train should be .shp')
@@ -302,15 +316,15 @@ class Classify(Worker):
         except:
             print 'Plugin requires installation of OrfeoToolbox'
 
-        self.status.emit('Task started!')
+        #self.status.emit('Task started!')
         try:
             ut = utils.utils()
             #generate image statistics
             try:
                 stats = str(self.path+self.raster[:-4]+'_stats.xml')
                 ut.otb_image_statistics(self.raster,stats)
-                self.status.emit('Calculated image statistics {} for {}'.format(stats,raster))
-                qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(stats,raster)))
+                #self.status.emit('Calculated image statistics {} for {}'.format(stats,raster))
+                #qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(stats,raster)))
                 self.calculate_progress()
             except:
                 e = str('Could not execute OTB Image Statistics on: {}'.format(raster))
@@ -320,20 +334,20 @@ class Classify(Worker):
                 error,train,test = ut.split_train(self.in_train)
                 if error != '':
                     raise Exception
-                self.status.emit('Calculated image statistics {} for {}'.format(stats,raster))
-                qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(stats,raster)))
-                self.calculate_progress()
+                #self.status.emit('Calculated image statistics {} for {}'.format(stats,raster))
+                #qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(stats,raster)))
+                #self.calculate_progress()
             except:
                 e=error
                 raise Exception
         except:
             self.error.emit(e)
-            self.status.emit('**ERROR**: Task failed, see log for details')
+            #self.status.emit('**ERROR**: Task failed, see log for details')
             self.finished.emit('Failed')
             #qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
             #ut.delete_tmps(self.ls_path)
         else:
-            self.status.emit('Task successfuly completed, see log for details')
+            #self.status.emit('Task successfuly completed, see log for details')
             self.finished.emit('Succeeded')
             #qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
             #ut.delete_tmps(self.ls_path)
@@ -346,7 +360,7 @@ FORM_CLASS_CLASS, _ = PyQt4.uic.loadUiType(os.path.join(
 
 class PreprocessingDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
 
-    def __init__(self, iface, parent=None):
+    def __init__(self, parent=None):
         """Constructor."""
         super(PreprocessingDialog, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -355,77 +369,68 @@ class PreprocessingDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+
+    def startWorker(self, iface, ls_path, roi, out_fname):
         self.iface = iface
+        self.ls_path = ls_path
+        self.roi = roi
+        self.out_fname = out_fname
 
-        #interactions
-        self.lineEdit.clear()
-        self.pushButton.clicked.connect(self.select_input_raster)
-        self.lineEdit_2.clear()
-        self.pushButton_2.clicked.connect(self.select_roi)
-        self.lineEdit_3.clear()
-        self.pushButton_3.clicked.connect(self.select_output_name)
-        self.progressBar.reset()
+        # create a new worker instance
+        worker = Preprocess(self.ls_path,self.roi,self.out_fname)
 
-        #TODO:defaults for development
-        self.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
-        self.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
-        self.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        # configure the QgsMessageBar
+        messageBar = self.iface.messageBar().createMessage('Doing something time consuming...', )
+        progressBar = PyQt4.QtGui.QProgressBar()
+        progressBar.setAlignment(PyQt4.QtCore.Qt.AlignLeft|PyQt4.QtCore.Qt.AlignVCenter)
+        cancelButton = PyQt4.QtGui.QPushButton()
+        cancelButton.setText('Cancel')
+# TODO: implement
+#        cancelButton.clicked.connect(worker.kill)
+        messageBar.layout().addWidget(progressBar)
+        messageBar.layout().addWidget(cancelButton)
+        self.iface.messageBar().pushWidget(messageBar, self.iface.messageBar().INFO)
+        self.messageBar = messageBar
 
-    def updateForm(self):
-        #get user edits
-        self.ls_path = self.lineEdit.text()+'/'
-        self.roi = self.lineEdit_2.text()
-        self.out_fname = self.lineEdit_3.text()
+        # start the worker in a new thread
+        thread = PyQt4.QtCore.QThread(self)
+        worker.moveToThread(thread)
+        worker.finished.connect(self.workerFinished)
+        worker.error.connect(self.workerError)
+        worker.progress.connect(progressBar.setValue)
+        #worker.status.connect(self.updateTextbox)
+        thread.started.connect(worker.run)
+        thread.start()
+        self.thread = thread
+        self.worker = worker
 
-    def select_input_raster(self):
-        dirname = PyQt4.QtGui.QFileDialog.getExistingDirectory(self, "Select input directory ","",PyQt4.QtGui.QFileDialog.ShowDirsOnly)
-        self.lineEdit.setText(dirname)
+    def workerFinished(self, ret):
+        # clean up the worker and thread
+        try:
+            self.worker.deleteLater()
+        except:
+            pass
+        self.thread.quit()
+        self.thread.wait()
+        self.thread.deleteLater()
+        # remove widget from message bar
+        self.iface.messageBar().popWidget(self.messageBar)
+        #if ret is not None:
+        #    # report the result
+        #    layer, total_area = ret
+        #    self.iface.messageBar().pushMessage('The total area of {name} is {area}.'.format(name=layer.name(), area=total_area))
+        #else:
+        #    # notify the user that something went wrong
+        #    self.iface.messageBar().pushMessage('Something went wrong! See the message log for more information.', level=QgsMessageBar.CRITICAL, duration=3)
 
-    def select_roi(self):
-        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select region of interest ","","*.shp")
-        self.lineEdit_2.setText(filename)
-
-    def select_output_name(self):
-        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
-        self.lineEdit_3.setText(filename)
-
-    #def updateProgress(self,value):
-    #    self.progressBar.setValue(value)
-
-    def updateTextbox(self,msg):
-        self.textBrowser.append(msg)
-
-    def workerError(self,error):
+    def workerError(self,exception_string):
         import qgis.core
-        qgis.core.QgsMessageLog.logMessage(str('Error:'+error))
+        qgis.core.QgsMessageLog.logMessage(str('Error:'+exception_string),level=qgis.core.QgsMessageLog.CRITICAL)
         #self.iface.messageBar().pushMessage("GFZ Satex","Processing failed. See log for details.",level=qgis.core.QgsMessageBar.CRITICAL,duration=5)
-
-    @PyQt4.QtCore.pyqtSlot()
-    def accept(self):
-        self.updateForm()
-        self.worker = Preprocess(self.ls_path,self.roi,self.out_fname)
-        self.thread = PyQt4.QtCore.QThread()
-        #worker = Preprocess(self.ls_path,self.roi,self.out_fname)
-        #thread = PyQt4.QtCore.QThread(self)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
-        self.worker.progress.connect(self.progressBar.setValue)
-      #  worker.progress.connect(self.updateProgress)
-      #  worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
-        self.worker.status.connect(self.updateTextbox)
-        self.worker.error.connect(self.workerError)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.finished.connect(self.thread.quit)
-        self.thread.start()
-
-    @PyQt4.QtCore.pyqtSlot()
-    def reject(self):
-        PyQt4.QtGui.QDialog.reject(self)
 
 class ClassificationDialog(PyQt4.QtGui.QDialog, FORM_CLASS_CLASS):
 
-    def __init__(self, iface, parent=None):
+    def __init__(self, parent=None):
         """Constructor."""
         super(ClassificationDialog, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -434,70 +439,69 @@ class ClassificationDialog(PyQt4.QtGui.QDialog, FORM_CLASS_CLASS):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.iface = iface
 
-        #interactions
-        self.lineEdit.clear()
-        self.pushButton.clicked.connect(self.select_input_pan)
-        self.lineEdit_2.clear()
-        self.pushButton_2.clicked.connect(self.select_training)
-        self.lineEdit_3.clear()
-        self.pushButton_3.clicked.connect(self.select_output_name)
-        self.progressBar.reset()
+        ##interactions
+        #self.lineEdit.clear()
+        #self.pushButton.clicked.connect(self.select_input_pan)
+        #self.lineEdit_2.clear()
+        #self.pushButton_2.clicked.connect(self.select_training)
+        #self.lineEdit_3.clear()
+        #self.pushButton_3.clicked.connect(self.select_output_name)
+        #self.progressBar.reset()
 
-        #TODO:defaults for development
-        self.lineEdit.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
-        self.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
-        self.lineEdit_3.setText()
+        ##TODO:defaults for development
+        #self.lineEdit.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        #self.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
+        #self.lineEdit_3.setText()
 
-    def updateForm(self):
-        #get user edits
-        self.raster = self.lineEdit.text()+'/'
-        self.train = self.lineEdit_2.text()
-        self.out_fname = self.lineEdit_3.text()
+    #def updateForm(self):
+    #    #get user edits
+    #    self.raster = self.lineEdit.text()+'/'
+    #    self.train = self.lineEdit_2.text()
+    #    self.out_fname = self.lineEdit_3.text()
 
-    def select_input_pan(self):
-        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select input pansharpened scene ","","")
-        self.lineEdit.setText(filename)
+    #def select_input_pan(self):
+    #    filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select input pansharpened scene ","","")
+    #    self.lineEdit.setText(filename)
 
-    def select_training(self):
-        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select training vector ","","*.shp")
-        self.lineEdit_2.setText(filename)
+    #def select_training(self):
+    #    filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select training vector ","","*.shp")
+    #    self.lineEdit_2.setText(filename)
 
-    def select_output_name(self):
-        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
-        self.lineEdit_3.setText(filename)
+    #def select_output_name(self):
+    #    filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
+    #    self.lineEdit_3.setText(filename)
 
-    #def updateProgress(self,value):
-    #    self.progressBar.setValue(value)
+    ##def updateProgress(self,value):
+    ##    self.progressBar.setValue(value)
 
-    def updateTextbox(self,msg):
-        self.textBrowser.append(msg)
+    #def updateTextbox(self,msg):
+    #    self.textBrowser.append(msg)
 
-    def workerError(self,error):
-        import qgis.core
-        qgis.core.QgsMessageLog.logMessage(str('Error:'+error))
-        #self.iface.messageBar().pushMessage("GFZ Satex","Processing failed. See log for details.",level=qgis.core.QgsMessageBar.CRITICAL,duration=5)
+    #def workerError(self,error):
+    #    import qgis.core
+    #    qgis.core.QgsMessageLog.logMessage(str('Error:'+error))
+    #    #self.iface.messageBar().pushMessage("GFZ Satex","Processing failed. See log for details.",level=qgis.core.QgsMessageBar.CRITICAL,duration=5)
 
-    @PyQt4.QtCore.pyqtSlot()
-    def accept(self):
-        self.updateForm()
-        self.worker = Classify(self.raster,self.train,self.out_fname)
-        self.thread = PyQt4.QtCore.QThread()
-        #worker = Preprocess(self.ls_path,self.roi,self.out_fname)
-        #thread = PyQt4.QtCore.QThread(self)
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
-        self.worker.progress.connect(self.progressBar.setValue)
-      #  worker.progress.connect(self.updateProgress)
-      #  worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
-        self.worker.status.connect(self.updateTextbox)
-        self.worker.error.connect(self.workerError)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.finished.connect(self.thread.quit)
-        self.thread.start()
+    #@PyQt4.QtCore.pyqtSlot()
+    #def accept(self):
+    #    self.updateForm()
+    #    self.worker = Classify(self.raster,self.train,self.out_fname)
+    #    self.thread = PyQt4.QtCore.QThread()
+    #    #worker = Preprocess(self.ls_path,self.roi,self.out_fname)
+    #    #thread = PyQt4.QtCore.QThread(self)
+    #    self.worker.moveToThread(self.thread)
+    #    self.thread.started.connect(self.worker.run)
+    #    self.worker.progress.connect(self.progressBar.setValue)
+    #  #  worker.progress.connect(self.updateProgress)
+    #  #  worker.status.connect(self.iface.mainWindow().statusBar().showMessage)
+    #    self.worker.status.connect(self.updateTextbox)
+    #    self.worker.error.connect(self.workerError)
+    #    self.worker.finished.connect(self.worker.deleteLater)
+    #    self.thread.finished.connect(self.thread.deleteLater)
+    #    self.worker.finished.connect(self.thread.quit)
+    #    self.thread.start()
 
-    @PyQt4.QtCore.pyqtSlot()
-    def reject(self):
-        PyQt4.QtGui.QDialog.reject(self)
+    #@PyQt4.QtCore.pyqtSlot()
+    #def reject(self):
+    #    PyQt4.QtGui.QDialog.reject(self)
