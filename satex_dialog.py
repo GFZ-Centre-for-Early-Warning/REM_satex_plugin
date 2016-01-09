@@ -84,8 +84,6 @@ class Preprocess(Worker):
         except:
             print 'Plugin requires installation of OrfeoToolbox'
 
-        self.finished.emit('done')
-
         #self.status.emit('Task started!')
         #find the number of different L8 scenes
         #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings

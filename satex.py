@@ -222,11 +222,17 @@ class SatEx:
         filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
         self.Pdlg.lineEdit_3.setText(filename)
 
-    #def updateProgress(self,value):
-    #    self.progressBar.setValue(value)
+    def calculate_progress(self):
+        self.processed = self.processed + 1
+        percentage_new = (self.processed * 100) / self.ntasks
+        if percentage_new > self.percentage:
+            self.percentage = percentage_new
 
     def updateTextbox(self,msg):
         self.textBrowser.append(msg)
+
+    def errorMsg(self,msg):
+        self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
 
     def run_preprocessing(self):
         """Run method that performs all the real work"""
@@ -236,9 +242,123 @@ class SatEx:
         #Dialog event loop
         result = self.Pdlg.exec_()
         if result:
+            self.processed = 0
+            self.percentage = 0
+            #TODO:fix
+            self.ntasks = 3
             #Get user edits
             self.updatePForm()
-            self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
+            #self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
+
+            import utils
+            import traceback
+            import qgis.core
+            import ogr
+            import subprocess
+
+            try:
+                import otbApplication
+            except:
+                print 'Plugin requires installation of OrfeoToolbox'
+
+            #find the number of different L8 scenes
+            #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
+            try:
+                try:
+                    #instantiate utilities function
+                    ut = utils.utils()
+                    #delete any old tmp files that might be in the directory from a killed task
+                    old=ut.delete_tmps(self.ls_path)
+                    if old > 0: qgis.core.QgsMessageLog.logMessage('Old *satexTMP* files were present. They were deleted.')
+                    scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
+                    #adjust number of tasks
+                    self.ntasks = self.ntasks*len(scenes)
+                    qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
+                except Exception as e:
+                    e = str('Found no Landsat 8 scene in {}'.format(self.ls_path))
+                    raise Exception
+
+                #check shapefile roi
+                try:
+                    driver = ogr.GetDriverByName('ESRI Shapefile')
+                    dataSource = driver.Open(self.roi,0)
+                    layer = dataSource.GetLayer()
+                    qgis.core.QgsMessageLog.logMessage(str('Using {} as ROI'.format(self.roi)))
+                except Exception as e:
+                    e = str('Could not open {}'.format(self.roi))
+                    raise Exception
+
+                #loop through all scenes
+                for scene in scenes:
+                    #find all bands for scene exclude quality band BQA and B8
+                    try:
+                        bands = [b for b in ut.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in b]
+                        bands = [b for b in bands if '_B8' not in b]
+                        #check if there are 10 bands
+                        #if len(bands)!=11:
+                        if len(bands)!=10:
+                            e = str('Found {} instead of 10 bands (excluding B8 and BQA) for scene {}'.format(len(bands),scene))
+                            raise Exception
+                        else:
+                            #self.status.emit('Found all 11 bands for scene {}'.format(scene))
+                            qgis.core.QgsMessageLog.logMessage(str('Found all 10 bands (excluding B8 and BQA) for scene {} '.format(scene)))
+                    except Exception as e:
+                        e = str('Could not find all 10 bands (excluding B8 and BQA) for scene {}'.format(scene))
+                        raise Exception
+
+                    #use gdalwarp to cut bands to roi
+                    try:
+                        #go through bands
+                        for band in bands:
+                            #self.status.emit('Cropping band {} to ROI'.format(band))
+                            qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
+                            cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
+                            subprocess.check_call(cmd)
+                        self.calculate_progress()
+                    except Exception as e:
+                        e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
+                        raise Exception
+
+                    # Layerstack
+                    try:
+                        #respect order B1,B2,B3,B4,B5,B6,B7,B9,B10,B11
+                        #in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands if '_B8' not in b]
+                        in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands]
+                        in_files.sort()
+                        #B10,B11 considered smaller --> resort
+                        in_files = in_files[2:] + in_files[0:2]
+                        out_file = str(self.ls_path+scene+'_satexTMP_mul.TIF')
+                        #call otb wrapper
+                        #self.status.emit('Concatenating bands for pansharpening scene {}'.format(scene))
+                        qgis.core.QgsMessageLog.logMessage(str('Concatenate bands for pansharpening scene {}'.format(scene)))
+                        ut.otb_concatenate(in_files,out_file)
+                        self.calculate_progress()
+                    except Exception as e:
+                        e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
+                        raise Exception
+
+                # after all scenes were processed combine them to a virtual raster tile
+                try:
+                    cmd = ["gdalbuildvrt","-srcnodata","0","-overwrite",self.out_fname]
+                    files = [f for f in ut.findFiles(self.ls_path,'*satexTMP_mul.TIF')]
+                    for f in files:
+                        cmd.append(str(self.ls_path+f))
+                    subprocess.check_call(cmd)
+                    qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(files),self.out_fname)))
+                    self.calculate_progress()
+                except:
+                    e = str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd)))
+                    raise Exception
+            except:
+                self.errorMsg(e)
+                self.finished.emit('Failed')
+                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+                ut.delete_tmps(self.ls_path)
+            else:
+                qgis.core.QgsMessageLog.logMessage(str('Processing sucessfully completed'))
+                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+                self.iface.messageBar().pushMessage('Processing successfully completed, see log for details',self.iface.messageBar().SUCCESS,duration=3)
+                ut.delete_tmps(self.ls_path)
 
     def run_classification(self):
         """Run method that performs all the real work"""
