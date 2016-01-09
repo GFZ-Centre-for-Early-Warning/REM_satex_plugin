@@ -118,18 +118,20 @@ class Preprocess(Worker):
 
             #loop through all scenes
             for scene in scenes:
-                #find all bands for scene exclude quality band BQA
+                #find all bands for scene exclude quality band BQA and B8
                 try:
                     bands = [b for b in ut.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in b]
-                    #check if there are 11 bands
-                    if len(bands)!=11:
-                        e = str('Found {} instead of 11 bands for scene {}'.format(len(bands),scene))
+                    bands = [b for b in bands if '_B8' not in b]
+                    #check if there are 10 bands
+                    #if len(bands)!=11:
+                    if len(bands)!=10:
+                        e = str('Found {} instead of 10 bands (excluding B8 and BQA) for scene {}'.format(len(bands),scene))
                         raise Exception
                     else:
                         #self.status.emit('Found all 11 bands for scene {}'.format(scene))
-                        qgis.core.QgsMessageLog.logMessage(str('Found all 11 bands for scene {} '.format(scene)))
+                        qgis.core.QgsMessageLog.logMessage(str('Found all 10 bands (excluding B8 and BQA) for scene {} '.format(scene)))
                 except Exception as e:
-                    e = str('Could not find all 11 bands for scene {}'.format(scene))
+                    e = str('Could not find all 10 bands (excluding B8 and BQA) for scene {}'.format(scene))
                     raise Exception
 
                 #use gdalwarp to cut bands to roi
@@ -147,8 +149,9 @@ class Preprocess(Worker):
 
                 # Layerstack
                 try:
-                    #respect order B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11
-                    in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands if '_B8' not in b]
+                    #respect order B1,B2,B3,B4,B5,B6,B7,B9,B10,B11
+                    #in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands if '_B8' not in b]
+                    in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands]
                     in_files.sort()
                     #B10,B11 considered smaller --> resort
                     in_files = in_files[2:] + in_files[0:2]
@@ -162,82 +165,84 @@ class Preprocess(Worker):
                     e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
                     raise Exception
 
-                #Resample from 30x30 to 15x15
-                try:
-                    in_file = out_file
-                    out_file = str(in_file[:-4]+'_15.TIF')
-                    #call otb wrapper
-                    #self.status.emit('Resampling layerstack for pansharpening scene {}'.format(scene))
-                    qgis.core.QgsMessageLog.logMessage(str('Resampling layerstack for pansharpening scene {}'.format(scene)))
-                    ut.otb_resample(in_file,out_file)
-                    self.calculate_progress()
-                except Exception as e:
-                    e = str('Could not execute OTB RigidTransformResample for scene: {}\nin_file: {}\nout_file: {}'.format(scene,in_file,out_file))
-                    raise Exception
+               # #Resample from 30x30 to 15x15
+               # try:
+               #     in_file = out_file
+               #     out_file = str(in_file[:-4]+'_15.TIF')
+               #     #call otb wrapper
+               #     #self.status.emit('Resampling layerstack for pansharpening scene {}'.format(scene))
+               #     qgis.core.QgsMessageLog.logMessage(str('Resampling layerstack for pansharpening scene {}'.format(scene)))
+               #     ut.otb_resample(in_file,out_file)
+               #     self.calculate_progress()
+               # except Exception as e:
+               #     e = str('Could not execute OTB RigidTransformResample for scene: {}\nin_file: {}\nout_file: {}'.format(scene,in_file,out_file))
+               #     raise Exception
 
-                #superimpose stack with B8 (make sure they are aligned)
-                try:
-                    in_file_ref = out_file
-                    in_file_inm = str(self.ls_path+scene+'_B8_satexTMP_ROI.TIF')
-                    out_file = str(self.ls_path+scene+'_B8_satexTMP_SI.TIF')
-                    #call otb wrapper
-                    #self.status.emit('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene))
-                    qgis.core.QgsMessageLog.logMessage(str('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene)))
-                    ut.otb_superimpose(in_file_ref,in_file_inm,out_file)
-                    self.calculate_progress()
-                except Exception as e:
-                    e = str('Could not execute OTB Superimpose for scene: {}\nin_file_ref: {}\nin_file_inm: {}\nout_file: {}'.format(scene,in_file_ref,in_file_inm,out_file))
-                    raise Exception
+               # #superimpose stack with B8 (make sure they are aligned)
+               # try:
+               #     in_file_ref = out_file
+               #     in_file_inm = str(self.ls_path+scene+'_B8_satexTMP_ROI.TIF')
+               #     out_file = str(self.ls_path+scene+'_B8_satexTMP_SI.TIF')
+               #     #call otb wrapper
+               #     #self.status.emit('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene))
+               #     qgis.core.QgsMessageLog.logMessage(str('Superimposing layerstack to B8 for pansharpening scene {}'.format(scene)))
+               #     ut.otb_superimpose(in_file_ref,in_file_inm,out_file)
+               #     self.calculate_progress()
+               # except Exception as e:
+               #     e = str('Could not execute OTB Superimpose for scene: {}\nin_file_ref: {}\nin_file_inm: {}\nout_file: {}'.format(scene,in_file_ref,in_file_inm,out_file))
+               #     raise Exception
 
-                #Pansharpen scene
-                try:
-                    in_file_pan = out_file
-                    in_file_mul = in_file_ref
-                    out_file = str(self.ls_path+scene+'_satexTMP_pan.TIF')
-                    #call otb wrapper
-                    #self.status.emit('Pansharpening layerstack of scene {}'.format(scene))
-                    qgis.core.QgsMessageLog.logMessage(str('Pansharpening layerstack of scene {}'.format(scene)))
-                    ut.otb_pansharpen(in_file_pan,in_file_mul,out_file)
-                    self.calculate_progress()
-                except Exception as e:
-                    e = str('Could not execute OTB Pansharpening for scene: {}\nin_file_pan: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_pan,in_file_mul,out_file))
-                    raise Exception
+               # #Pansharpen scene
+               # try:
+               #     in_file_pan = out_file
+               #     in_file_mul = in_file_ref
+               #     out_file = str(self.ls_path+scene+'_satexTMP_pan.TIF')
+               #     #call otb wrapper
+               #     #self.status.emit('Pansharpening layerstack of scene {}'.format(scene))
+               #     qgis.core.QgsMessageLog.logMessage(str('Pansharpening layerstack of scene {}'.format(scene)))
+               #     ut.otb_pansharpen(in_file_pan,in_file_mul,out_file)
+               #     self.calculate_progress()
+               # except Exception as e:
+               #     e = str('Could not execute OTB Pansharpening for scene: {}\nin_file_pan: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_pan,in_file_mul,out_file))
+               #     raise Exception
 
-                #Split layerstack
-                try:
-                    in_file_mul = in_file_mul
-                    #pattern for output bands <pattern>_x.TIF
-                    out_file = str(self.ls_path+scene+'_satexTMP_pan.TIF')
-                    #call otb wrapper
-                    #self.status.emit('Splitting pansharpened layerstack of scene {}'.format(scene))
-                    qgis.core.QgsMessageLog.logMessage(str('Splitting pansharpened layerstack of scene {}'.format(scene)))
-                    ut.otb_split(in_file_mul,out_file)
-                    self.calculate_progress()
-                except Exception as e:
-                    e = str('Could not execute OTB SplitImage for scene: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_mul,out_file))
-                    raise Exception
+               # #Split layerstack
+               # try:
+               #     in_file_mul = in_file_mul
+               #     #pattern for output bands <pattern>_x.TIF
+               #     out_file = str(self.ls_path+scene+'_satexTMP_pan.TIF')
+               #     #call otb wrapper
+               #     #self.status.emit('Splitting pansharpened layerstack of scene {}'.format(scene))
+               #     qgis.core.QgsMessageLog.logMessage(str('Splitting pansharpened layerstack of scene {}'.format(scene)))
+               #     ut.otb_split(in_file_mul,out_file)
+               #     self.calculate_progress()
+               # except Exception as e:
+               #     e = str('Could not execute OTB SplitImage for scene: {}\nin_file_mul: {}\nout_file: {}'.format(scene,in_file_mul,out_file))
+               #     raise Exception
 
-                #Restack layers with superimposed B8
-                try:
-                    #gather files
-                    in_files = [str(self.ls_path+f) for f in ut.findFiles(self.ls_path,scene+'_satexTMP_pan_*.TIF')]
-                    in_files.sort()
-                    #add superimposed B8
-                    in_files = in_files[:8]+[str(self.ls_path+scene+'_B8_satexTMP_SI.TIF')]+in_files[8:]
-                    out_file = str(self.ls_path+scene+'_satexTMP_mul_pan.TIF')
-                    #call otb wrapper
-                    ut.otb_concatenate(in_files,out_file)
-                    #self.status.emit('Concatenating pansharpened bands for scene {}'.format(scene))
-                    qgis.core.QgsMessageLog.logMessage(str('Concatenating pansharpened bands for scene {}'.format(scene)))
-                    self.calculate_progress()
-                except Exception as e:
-                    e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
-                    raise Exception
+               # #Restack layers with superimposed B8
+               # try:
+               #     #gather files
+               #     in_files = [str(self.ls_path+f) for f in ut.findFiles(self.ls_path,scene+'_satexTMP_pan_*.TIF')]
+               #     in_files.sort()
+               #     #add superimposed B8
+               #     in_files = in_files[:8]+[str(self.ls_path+scene+'_B8_satexTMP_SI.TIF')]+in_files[8:]
+               #     out_file = str(self.ls_path+scene+'_satexTMP_mul_pan.TIF')
+               #     #call otb wrapper
+               #     ut.otb_concatenate(in_files,out_file)
+               #     #self.status.emit('Concatenating pansharpened bands for scene {}'.format(scene))
+               #     qgis.core.QgsMessageLog.logMessage(str('Concatenating pansharpened bands for scene {}'.format(scene)))
+               #     self.calculate_progress()
+               # except Exception as e:
+               #     e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
+               #     raise Exception
 
             # after all scenes were processed combine them to a virtual raster tile
             try:
-                cmd = ["gdalbuildvrt","overwrite",self.out_fname]
-                files = [f for f in ut.findFiles(self.ls_path,'*satexTMP_mul_pan.TIF')]
+                #cmd = ["gdalbuildvrt","overwrite",self.out_fname]
+                cmd = ["gdalbuildvrt","-srcnodata","0","-overwrite",self.out_fname]
+                #files = [f for f in ut.findFiles(self.ls_path,'*satexTMP_mul_pan.TIF')]
+                files = [f for f in ut.findFiles(self.ls_path,'*satexTMP_mul.TIF')]
                 for f in files:
                     cmd.append(str(self.ls_path+f))
                 subprocess.check_call(cmd)
@@ -252,12 +257,12 @@ class Preprocess(Worker):
             #self.status.emit('**ERROR**: Task failed, see log for details')
             self.finished.emit('Failed')
             qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
-            #ut.delete_tmps(self.ls_path)
+            ut.delete_tmps(self.ls_path)
         else:
             #self.status.emit('Task successfuly completed, see log for details')
             self.finished.emit('Succeeded')
             qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
-           # ut.delete_tmps(self.ls_path)
+            #ut.delete_tmps(self.ls_path)
 
 class Classify(Worker):
     '''
@@ -394,12 +399,16 @@ class PreprocessingDialog(PyQt4.QtGui.QDialog, FORM_CLASS_PREPR):
         self.thread = thread
         self.worker = worker
 
-    def workerFinished(self, ret):
+    def workerFinished(self, return_str):
         # clean up the worker and thread
-        try:
-            self.worker.deleteLater()
-        except:
-            pass
+        # disconnect the signals
+        self.worker.finished.disconnect()
+        self.worker.error.disconnect()
+        self.worker.progress.disconnect()
+        self.thread.started.disconnect()
+        #delete worker and thread
+        self.worker.deleteLater()
+
         self.thread.quit()
         self.thread.wait()
         self.thread.deleteLater()
