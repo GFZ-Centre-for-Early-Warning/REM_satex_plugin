@@ -27,6 +27,7 @@ import resources
 # Import the code for the dialog
 from satex_dialog import PreprocessingDialog, ClassificationDialog
 import os.path
+import qgis.utils
 
 class SatEx:
     """QGIS Plugin Implementation."""
@@ -72,21 +73,39 @@ class SatEx:
 
         #create dialogs and keep reference
         self.Pdlg = PreprocessingDialog()
-#        self.Cdlg = ClassificationDialog()
+        self.Cdlg = ClassificationDialog()
 
         #gui interactions
+        #Preprocessing
         self.Pdlg.lineEdit.clear()
         self.Pdlg.pushButton.clicked.connect(self.select_input_raster)
         self.Pdlg.lineEdit_2.clear()
         self.Pdlg.pushButton_2.clicked.connect(self.select_roi)
         self.Pdlg.lineEdit_3.clear()
-        self.Pdlg.pushButton_3.clicked.connect(self.select_output_name)
-        self.Pdlg.progressBar.reset()
+        self.Pdlg.pushButton_3.clicked.connect(self.select_Poutput_name)
+        self.Pdlg.toolButton.clicked.connect(self.show_help)
+
+        #Classification
+        self.Cdlg.lineEdit.clear()
+        self.Cdlg.pushButton.clicked.connect(self.select_input_pan)
+        self.Cdlg.lineEdit_2.clear()
+        self.Cdlg.pushButton_2.clicked.connect(self.select_roi)
+        self.Cdlg.lineEdit_3.clear()
+        self.Cdlg.pushButton_3.clicked.connect(self.select_Coutput_name)
+        self.Cdlg.checkBox.clicked.connect(self.switch_external_SVM)
+        self.Cdlg.checkBox_3.clicked.connect(self.switch_sieve)
+        self.Cdlg.pushButton_4.clicked.connect(self.select_CSVM)
+        self.Cdlg.lineEdit_6.setText('4')
+        self.Cdlg.toolButton.clicked.connect(self.show_help)
 
         #TODO:defaults for development
-        self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
-        self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
-        self.Pdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
+        #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
+        #self.Pdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        #TODO:defaults for development
+        #self.Cdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        #self.Cdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/kerak_training.shp')
+        #self.Cdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test_classes.tif')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -211,32 +230,85 @@ class SatEx:
         self.out_fname = self.Pdlg.lineEdit_3.text()
 
     def select_input_raster(self):
-        dirname = PyQt4.QtGui.QFileDialog.getExistingDirectory(self, "Select input directory ","",PyQt4.QtGui.QFileDialog.ShowDirsOnly)
+        dirname = PyQt4.QtGui.QFileDialog.getExistingDirectory(self.Pdlg, "Select input directory ","",PyQt4.QtGui.QFileDialog.ShowDirsOnly)
         self.Pdlg.lineEdit.setText(dirname)
 
     def select_roi(self):
-        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self, "Select region of interest ","","*.shp")
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Pdlg, "Select region of interest ","","*.shp")
         self.Pdlg.lineEdit_2.setText(filename)
 
-    def select_output_name(self):
-        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self, "Select output file ","","*.vrt")
+    def select_Poutput_name(self):
+        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Pdlg, "Select output file ","","*.vrt")
         self.Pdlg.lineEdit_3.setText(filename)
 
-    def calculate_progress(self):
-        self.processed = self.processed + 1
-        percentage_new = (self.processed * 100) / self.ntasks
-        if percentage_new > self.percentage:
-            self.percentage = percentage_new
+    def updateCForm(self):
+        #get user edits
+        self.raster = self.Cdlg.lineEdit.text()
+        self.in_train = self.Cdlg.lineEdit_2.text()
+        self.out_fname = self.Cdlg.lineEdit_3.text()
+        self.label = self.Cdlg.lineEdit_5.text()
+        self.sieve = self.Cdlg.lineEdit_6.text()
 
-    def updateTextbox(self,msg):
-        self.textBrowser.append(msg)
+    def select_input_pan(self):
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Cdlg, "Select input layerstacked virtual raster tile","","*.vrt")
+        self.Cdlg.lineEdit.setText(filename)
+
+    def select_training(self):
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Cdlg, "Select training vector ","","*.shp")
+        self.Cdlg.lineEdit_2.setText(filename)
+
+    def select_CSVM(self):
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Cdlg, "Select Support Vector Model file","","")
+        self.Cdlg.lineEdit_4.setText(filename)
+
+    def select_Coutput_name(self):
+        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Cdlg, "Select output file ","","")
+        self.Cdlg.lineEdit_3.setText(filename)
+
+
+    #def calculate_progress(self):
+    #    self.processed = self.processed + 1
+    #    percentage_new = (self.processed * 100) / self.ntasks
+    #    if percentage_new > self.percentage:
+    #        self.percentage = percentage_new
+
+    #def updateTextbox(self,msg):
+    #    self.textBrowser.append(msg)
+
+    def switch_external_SVM(self):
+        '''
+        Activates the external SVM dialog parts
+        '''
+        if self.Cdlg.checkBox.isChecked():
+            self.Cdlg.lineEdit_4.setEnabled(True)
+            self.Cdlg.pushButton_4.setEnabled(True)
+            self.Cdlg.label_5.setEnabled(True)
+            #self.Cdlg.lineEdit_5.setDisabled(True)
+            #self.Cdlg.label_6.setDisabled(True)
+            self.external=True
+        else:
+            self.Cdlg.lineEdit_4.setDisabled(True)
+            self.Cdlg.pushButton_4.setDisabled(True)
+            self.Cdlg.label_5.setDisabled(True)
+            #self.Cdlg.lineEdit_5.setEnabled(True)
+            #self.Cdlg.label_6.setEnabled(True)
+            self.external=False
+
+    def switch_sieve(self):
+        if self.Cdlg.checkBox_3.isChecked():
+            self.Cdlg.lineEdit_6.setEnabled(True)
+        else:
+            self.Cdlg.lineEdit_6.setEnabled(False)
+
+    def show_help(self):
+        qgis.utils.showPluginHelp()
 
     def errorMsg(self,msg):
         self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
 
     def run_preprocessing(self):
         """Run method that performs all the real work"""
-        #self.Pdlg.setModal(False)
+        self.Pdlg.setModal(False)
         self.Pdlg.show()
 
         #Dialog event loop
@@ -263,14 +335,15 @@ class SatEx:
 
             #find the number of different L8 scenes
             #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
+            e = 'unspecified error'
+            #instantiate utilities function
+            ut = utils.utils()
             try:
                 try:
-                    #instantiate utilities function
-                    ut = utils.utils()
                     #delete any old tmp files that might be in the directory from a killed task
                     old=ut.delete_tmps(self.ls_path)
                     if old > 0: qgis.core.QgsMessageLog.logMessage('Old *satexTMP* files were present. They were deleted.')
-                    scenes = set(['_'.join(s.split('_')[:-1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
+                    scenes = set(['_'.join(s.split('_')[:1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
                     #adjust number of tasks
                     self.ntasks = self.ntasks*len(scenes)
                     qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
@@ -292,7 +365,7 @@ class SatEx:
                 for scene in scenes:
                     #find all bands for scene exclude quality band BQA and B8
                     try:
-                        bands = [b for b in ut.findFiles(self.ls_path,scene+'*.TIF') if '_BQA' not in b]
+                        bands = [b for b in ut.findFiles(self.ls_path,scene+'*_B*.TIF') if '_BQA' not in b]
                         bands = [b for b in bands if '_B8' not in b]
                         #check if there are 10 bands
                         #if len(bands)!=11:
@@ -312,9 +385,9 @@ class SatEx:
                         for band in bands:
                             #self.status.emit('Cropping band {} to ROI'.format(band))
                             qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
-                            cmd = ['gdalwarp','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
+                            cmd = ['gdalwarp','-overwrite','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
                             subprocess.check_call(cmd)
-                        self.calculate_progress()
+#                        self.calculate_progress()
                     except Exception as e:
                         e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
                         raise Exception
@@ -327,32 +400,37 @@ class SatEx:
                         in_files.sort()
                         #B10,B11 considered smaller --> resort
                         in_files = in_files[2:] + in_files[0:2]
-                        out_file = str(self.ls_path+scene+'_satexTMP_mul.TIF')
+                        out_file = str(self.ls_path+scene+'_satex_mul.TIF')
                         #call otb wrapper
                         #self.status.emit('Concatenating bands for pansharpening scene {}'.format(scene))
                         qgis.core.QgsMessageLog.logMessage(str('Concatenate bands for pansharpening scene {}'.format(scene)))
                         ut.otb_concatenate(in_files,out_file)
-                        self.calculate_progress()
+                        #self.calculate_progress()
                     except Exception as e:
                         e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
                         raise Exception
 
                 # after all scenes were processed combine them to a virtual raster tile
                 try:
-                    cmd = ["gdalbuildvrt","-srcnodata","0","-overwrite",self.out_fname]
-                    files = [f for f in ut.findFiles(self.ls_path,'*satexTMP_mul.TIF')]
+                    cmd = ["gdalbuildvrt","-q","-srcnodata","0","-overwrite",self.out_fname]
+                    files = [f for f in ut.findFiles(self.ls_path,'*satex_mul.TIF')]
                     for f in files:
                         cmd.append(str(self.ls_path+f))
                     subprocess.check_call(cmd)
                     qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(files),self.out_fname)))
-                    self.calculate_progress()
+                    #self.calculate_progress()
                 except:
                     e = str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd)))
                     raise Exception
+
+                #add to map canvas if checked
+                if self.Pdlg.checkBox.isChecked():
+                    self.iface.addRasterLayer(str(self.out_fname), "SatEx_vrt")
+
             except:
                 self.errorMsg(e)
-                self.finished.emit('Failed')
-                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+                qgis.core.QgsMessageLog.logMessage(str('Exception: {}'.format(e)))
+                qgis.core.QgsMessageLog.logMessage(str('Exception: Deleting temporary files'))
                 ut.delete_tmps(self.ls_path)
             else:
                 qgis.core.QgsMessageLog.logMessage(str('Processing sucessfully completed'))
@@ -362,5 +440,110 @@ class SatEx:
 
     def run_classification(self):
         """Run method that performs all the real work"""
-        self.Cdlg.setModal(False)
         self.Cdlg.show()
+
+        #external SVM model switch
+        self.external=False
+
+        #Dialog event loop
+        result = self.Cdlg.exec_()
+        if result:
+            import utils
+            import traceback
+            import qgis.core
+            import ogr
+            import subprocess
+
+            self.processed = 0
+            self.percentage = 0
+            #TODO:fix
+            self.ntasks = 3
+            #Get user edits
+            self.updateCForm()
+            #TODO:fix
+            self.classification_type='libsvm'
+            self.svmModel = self.in_train[:-4]+'_svmModel.svm'
+            self.ConfMatrix = self.in_train[:-4]+'_CM.csv'
+
+            try:
+                import otbApplication
+            except:
+                print 'Plugin requires installation of OrfeoToolbox'
+
+            e = 'unspecified error'
+            try:
+                #instantiate utilities functions
+                ut = utils.utils()
+                #generate image statistics
+                try:
+                    self.stats = str(self.raster[:-4]+'_stats.xml')
+                    ut.otb_image_statistics(str(self.raster),str(self.stats))
+                    qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(self.stats,self.raster)))
+                    #self.calculate_progress()
+                except:
+                    e = str('Could not execute OTB Image Statistics on: {}'.format(self.raster))
+                    raise Exception
+
+                #differntiate two cases case 1) external SVM provided an case 2) on the fly SVM training
+                if self.external:
+                    #use full training set for testing
+                    self.test = self.in_train
+                    #get SVM filename
+                    self.svmModel = self.Cdlg.lineEdit_4.text()
+                else:
+                    #split training dataset in 80% train 20% testing
+                    [self.error,self.test,self.train] = ut.split_train(self.in_train,self.label)
+                    if self.error != 'success':
+                        e=self.error
+                        raise Exception
+                    else:
+                        qgis.core.QgsMessageLog.logMessage(str('Splitted ground truth data set in {} (~80%) and {} (~20%)'.format(self.train,self.test)))
+
+                    #train classifier
+                    #on the fly (wrong) confusion matrix gets overwritten later
+                    try:
+                        ut.otb_train_classifier(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix)
+                        qgis.core.QgsMessageLog.logMessage(str('Trained image classifier using {} and {}'.format(self.raster,self.train)))
+                    except Exception as e:
+                        e = 'Could not execute OTB TrainClassifiers with {} {} {} {} {} {} {}'.format(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix)
+                        raise Exception
+
+                #classify image
+                try:
+                    ut.otb_classification(self.raster, self.stats, self.svmModel, self.out_fname)
+                    qgis.core.QgsMessageLog.logMessage(str('Image {} classified as {}'.format(self.raster,self.out_fname)))
+                except Exception as e:
+                    e = 'Could not execute OTB Classifier with {}, {}, {}, {}'.format(self.raster, self.stats, self.svmModel, self.out_fname)
+                    raise Exception
+
+                #confusion matrix
+                try:
+                    ut.otb_confusion_matrix(self.out_fname,self.ConfMatrix,self.test,self.label)
+                    qgis.core.QgsMessageLog.logMessage(str('Confusion matrix calcualted on classified image {} with test set {} saved as {}'.format(self.out_fname,self.test,self.ConfMatrix)))
+                except Exception as e:
+                    e = 'Could not execute OTB Confusion Matrix with {}, {}, {}, {}'.format(self.out_fname, self.ConfMatrix, self.test, self.label)
+                    raise Exception
+
+                #if sieving is asked perform sieving
+                if self.Cdlg.checkBox_3.isChecked():
+                    try:
+                        cmd = ['gdal_sieve.py','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
+                        subprocess.check_call(cmd)
+                    except Exception as e:
+                        e = 'Could not execute {}'.format(cmd)
+                        raise Exception
+
+                #add to map canvas if checked
+                if self.Cdlg.checkBox_2.isChecked():
+                    self.iface.addRasterLayer(str(self.out_fname), "SatEx_classified_scene")
+
+            except:
+                self.errorMsg(e)
+                qgis.core.QgsMessageLog.logMessage(e)
+                qgis.core.QgsMessageLog.logMessage(str('Exception: Deleting temporary files'))
+                #ut.delete_tmps(self.ls_path)
+            else:
+                qgis.core.QgsMessageLog.logMessage(str('Processing completed'))
+                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
+                self.iface.messageBar().pushMessage('Processing successfully completed, see log for details',self.iface.messageBar().SUCCESS,duration=3)
+                #ut.delete_tmps(self.ls_path)

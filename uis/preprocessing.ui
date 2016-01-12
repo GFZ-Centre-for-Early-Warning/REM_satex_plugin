@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>430</width>
-    <height>442</height>
+    <width>457</width>
+    <height>296</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -64,14 +64,14 @@
   <widget class="QLabel" name="label_3">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>0</y>
-     <width>401</width>
+     <x>6</x>
+     <y>-4</y>
+     <width>451</width>
      <height>81</height>
     </rect>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Preprocessing&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Process unzipped Landsat 8 scene&lt;/p&gt;&lt;p&gt;to return pansharpened raster&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Crop to region of interest, layerstack and create a virtual raster tile &lt;/p&gt;&lt;p&gt;of one or more unzipped Landsat 8 scene located in a single directory.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QLineEdit" name="lineEdit">
@@ -165,27 +165,30 @@
     <string>. . .</string>
    </property>
   </widget>
-  <widget class="QProgressBar" name="progressBar">
-   <property name="geometry">
-    <rect>
-     <x>23</x>
-     <y>248</y>
-     <width>118</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="value">
-    <number>24</number>
-   </property>
-  </widget>
-  <widget class="QTextBrowser" name="textBrowser">
+  <widget class="QCheckBox" name="checkBox">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>300</y>
-     <width>391</width>
-     <height>131</height>
+     <y>204</y>
+     <width>181</width>
+     <height>20</height>
     </rect>
+   </property>
+   <property name="text">
+    <string>Add result to canvas</string>
+   </property>
+  </widget>
+  <widget class="QToolButton" name="toolButton">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>250</y>
+     <width>51</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Help</string>
    </property>
   </widget>
  </widget>

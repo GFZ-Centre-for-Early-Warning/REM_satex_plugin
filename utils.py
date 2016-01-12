@@ -130,21 +130,24 @@ class utils(object):
     ###################################################
     # Classification functions
     ###################################################
-    import ogr
-    import random
-    import math
 
     def split_train(self,vector,label):
         '''
         Splits a vector layer into training and testing layers
-        whit 80%/20% splitting ratio
+        with 80%/20% splitting ratio
         '''
+        import ogr
+        import random
+        import math
+        import subprocess
+
         seed = 42
-        error,test_file,train_file = ''
+        error,test_file,train_file = '','',''
+
         try:
             try:
                 driver = ogr.GetDriverByName('ESRI Shapefile')
-                src = driver.Open(self.roi,0)
+                src = driver.Open(vector,0)
                 src_layer = src.GetLayer()
             except:
                 error = 'Reading provided training layer {} failed'.format(vector)
@@ -152,28 +155,40 @@ class utils(object):
 
             try:
                 #random sampling
-                #determine number of features
-                nr_features = src_layer.GetFeatureCount()
-                nr_test = int(math.ceil(nr_features*0.2))
-
-                #determine different labels
-                idxs = list(range(nr_features))
+                #idxs = list(range(nr_features))
+                idxs = []
                 labels = []
-                for i in idxs:
-                    labels.append(src_layer.GetFeature(i).GetField(label))
+                while True:
+                    try:
+                        #determine fids
+                        tmp=src_layer.GetNextFeature()
+                        i = tmp.GetFID()
+                        #store FID
+                        idxs.append(i)
+                        #store class label
+                        labels.append(tmp.GetField(str(label)))
+                    except:
+                        break
+                #make sure label was found
+                tmp = 1/len(labels)
+                #determine number of features
+                nr_features = len(idxs)
+                #nr_features = src_layer.GetFeatureCount()
+                nr_test = int(math.ceil(nr_features*0.2))
             except:
-                error = 'Could not find label {} in provided training layer {}'.format(label,vector)
+                error = 'Could not find column labeled {} in provided training layer {}'.format(label,vector)
                 raise Exception
 
+
             try:
-                #number of different labels
+                #number of unique class labels
                 label_set = set(labels)
                 nr_labels = len(label_set)
                 #number of samples per class
                 nr_sample = int(math.ceil(nr_test/nr_labels))
-                #determine if class sampling is possible (assuming equally sized classes)
-                if math.floor(nr_features/nr_sample) < nr_labels:
-                    error = 'Classes not populated enough in training set'
+                #determine if class sampling is possible at all (assuming equally sized classes and at least 1 train and 1 test)
+                if nr_features < 2*nr_labels:
+                    error = 'Classes not populated enough in training set, at least 2 features per class required'
                     raise Exception
             except:
                 raise Exception
@@ -201,32 +216,32 @@ class utils(object):
             except:
                 raise Exception
 
+            #Create layers
             try:
-                #Create layers
-                #Gather meta info
-                srs = src_layer.GetSpatialRef()
-                geom_type = src_layer.GetLayerDefn().GetGeomType()
-
+                #test
                 test_file = vector[:-4]+'_test.shp'
-                train_file = vector[:-4]+'_train.shp'
-                test = driver.CreateDataSource(test_file)
-                train = driver.CreateDataSource(train_file)
-                test_layer = test.CreateLayer('test',srs = srs,geom_type=geom_type)
-                train_layer = train.CreateLayer('train',srs = srs,geom_type=geom_type)
-                #populate
-                for i in idx_test:
-                    tmp = src_layer.GetFeature(i)
-                    [test_layer.CreateField(tmp.GetFieldDefnRef(i)) for i in range(tmp.GetFieldCount())]
-                for i in idx_train:
-                    tmp = src_layer.GetFeature(i)
-                    [train_layer.CreateField(tmp.GetFieldDefnRef(i)) for i in range(tmp.GetFieldCount())]
+                print 'test_file:',test_file
+                query_str='('+','.join([str(i) for i in idx_test])+')'
+                cmd = ['ogr2ogr','-overwrite','-where','fid in {}'.format(query_str),str(test_file),str(vector)]
+                subprocess.check_call(cmd)
             except:
-                error = 'Layer creation failed'
+                error = 'Layer creation {} failed'.format(cmd)
+                raise Exception
+            try:
+                #train
+                train_file = vector[:-4]+'_train.shp'
+                query_str='('+','.join([str(i) for i in idx_train])+')'
+                cmd = ['ogr2ogr','-overwrite','-where','fid in {}'.format(query_str),str(train_file),str(vector)]
+                subprocess.check_call(cmd)
+            except:
+                error = 'Layer creation {} failed'.format(cmd)
                 raise Exception
         except:
             pass
 
-        return error,test_file,train_file
+        if error == '': error = 'success'
+
+        return [error,test_file,train_file]
 
     def otb_image_statistics(self,input_raster, statistics_xml):
         '''
@@ -236,8 +251,8 @@ class utils(object):
         ComputeImagesStatistics = otbApplication.Registry.CreateApplication("ComputeImagesStatistics")
 
         # The following lines set all the application parameters:
-        ComputeImagesStatistics.SetParameterStringList("il", [input_raster])
-        ComputeImagesStatistics.SetParameterString("out", statistics_xml)
+        ComputeImagesStatistics.SetParameterStringList("il", [str(input_raster)])
+        ComputeImagesStatistics.SetParameterString("out", str(statistics_xml))
 
         # The following line execute the application
         ComputeImagesStatistics.ExecuteAndWriteOutput()
@@ -250,23 +265,24 @@ class utils(object):
         # The following line creates an instance of the TrainImagesClassifier application
         TrainImagesClassifier = otbApplication.Registry.CreateApplication("TrainImagesClassifier")
         # The following lines set all the application parameters:
-        TrainImagesClassifier.SetParameterStringList("io.il", [input_raster])
-        TrainImagesClassifier.SetParameterStringList("io.vd", [input_shape])
-        TrainImagesClassifier.SetParameterString("io.imstat", statistics_xml)
+        TrainImagesClassifier.SetParameterStringList("io.il", [str(input_raster)])
+        TrainImagesClassifier.SetParameterStringList("io.vd", [str(input_shape)])
+        TrainImagesClassifier.SetParameterString("io.imstat", str(statistics_xml))
         TrainImagesClassifier.SetParameterInt("sample.mv", 100)
         TrainImagesClassifier.SetParameterInt("sample.mt", 100)
-        TrainImagesClassifier.SetParameterFloat("sample.vtr", 0.5)
+        TrainImagesClassifier.SetParameterFloat("sample.vtr", 0.0)
         TrainImagesClassifier.SetParameterString("sample.edg","1")
-        TrainImagesClassifier.SetParameterString("sample.vfn", training_label)
-        TrainImagesClassifier.SetParameterString("classifier", classification_type)
+        TrainImagesClassifier.SetParameterString("sample.vfn", str(training_label))
+        TrainImagesClassifier.SetParameterString("classifier", str(classification_type))
         TrainImagesClassifier.SetParameterString("classifier.libsvm.k","linear")
         TrainImagesClassifier.SetParameterFloat("classifier.libsvm.c", 1)
         TrainImagesClassifier.SetParameterString("classifier.libsvm.opt","1")
-        TrainImagesClassifier.SetParameterString("io.out", output_svm)
-        TrainImagesClassifier.SetParameterString("io.confmatout", confusion_matrix_csv)
+        TrainImagesClassifier.SetParameterString("io.out", str(output_svm))
+        TrainImagesClassifier.SetParameterString("io.confmatout", str(confusion_matrix_csv))
 
         # The following line execute the application
         TrainImagesClassifier.ExecuteAndWriteOutput()
+
 
     def otb_classification(self,input_raster, statistics_xml, input_svm, output_raster):
         '''
@@ -275,11 +291,26 @@ class utils(object):
         ImageClassifier = otbApplication.Registry.CreateApplication("ImageClassifier")
 
         # The following lines set all the application parameters:
-        ImageClassifier.SetParameterString("in", input_raster)
-        ImageClassifier.SetParameterString("imstat", statistics_xml)
-        ImageClassifier.SetParameterString("model", input_svm)
-        ImageClassifier.SetParameterString("out", output_raster)
+        ImageClassifier.SetParameterString("in", str(input_raster))
+        ImageClassifier.SetParameterString("imstat", str(statistics_xml))
+        ImageClassifier.SetParameterString("model", str(input_svm))
+        ImageClassifier.SetParameterString("out", str(output_raster))
 
         # The following line execute the application
         ImageClassifier.ExecuteAndWriteOutput()
+
+
+    def otb_confusion_matrix(self,class_raster,out_conf_mat,test_vector,label):
+        # The following line creates an instance of the ComputeConfusionMatrix application
+        ComputeConfusionMatrix = otbApplication.Registry.CreateApplication("ComputeConfusionMatrix")
+        # The following lines set all the application parameters:
+        ComputeConfusionMatrix.SetParameterString("in", str(class_raster))
+        ComputeConfusionMatrix.SetParameterString("out", str(out_conf_mat))
+        ComputeConfusionMatrix.SetParameterString("ref","vector")
+        ComputeConfusionMatrix.SetParameterString("ref.vector.in", str(test_vector))
+        ComputeConfusionMatrix.SetParameterString("ref.vector.field", str(label))
+        ComputeConfusionMatrix.SetParameterInt("nodatalabel", 0)
+
+        # The following line execute the application
+        ComputeConfusionMatrix.ExecuteAndWriteOutput()
 

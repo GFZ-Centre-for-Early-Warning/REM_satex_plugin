@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SatEx help</title>
+  </head>
+  <body>
+	<h1> SatEx - QGIS plugin </h1>
+	<p>by GFZ German Research Centre for Geosciences - Centre for Early Warning Systems </p> 
+	<p>Author: Michael Haas</p>
+	<p>Date: January 12, 2016</p>
+	
+	<h2>Requirements</h2>
+	
+	<p>The plugin requires QGIS (>=2.0) and an installation of the Orfeo Toolbox (OTB)</p>
+	
+	<h2>Purpose of the Plugin</h2>
+	
+	<p>Plugin that provides two algorithms for the processing of one or multiple Landsat 8 scenes within a region of interest towards a Landuse/Landcoverage classification streamlining all required processing
+	steps to perform a libsvm/orfeo toolbox (OTB) pixel based classification.</p>
+	
+	<h2>Structure of the Plugin</h2>
+	
+    <p>The Plugin is structured in two modules:</p>
+	
+    <p>1. Preprocessing, and</p>
+    <p>2. Classification </p>
+	
+	In the <b>Preprocessing</b> algorithm Landsat 8 scenes located in a directory as e.g. the directory created by extracting from the downloaded zip archive of a Landsat 8 scene as can be found on EarthExplorer http://earthexplorer.usgs.gov/ is 1) cropped to a region of interest provided as e.g. a polygon feature in a vector file and then 2) the separate spectral Bands 1-7,9-11 are stacked and 3) a virtual raster tile is created out of these, i.e., in case the region of interest stretches over more than one Landsat 8 scene.
+	
+	The <b>Classification </b>algorithm is performing a classification of a raster file as, e.g., resulting from the <b>Preprocessing </b>algorithm and either by using a provided trained Support Vector Model (SVM) from OTB or training and testing a SVM on the fly using a provided ground truth testing/training data set. In the case a on the fly training/testing is performed the provided ground truth data is randomly split in a testing (~20%) and a training part (~80%), the latter is then used in the libsvm implementation of OTB to create a SVM. This SVM (or the external SVM) are then used to classify the image. The resulting raster file with class labels is then tested with the testing dataset (all features of the provided vector layer in case an external SVM model was provided) and a confusion matrix is produced. Finally the resulting raster file is sieved (i.e. regions consisting of view pixels are merged to the surrounding).</p>
+	
+	<h2>Instructions on plugin usage</h2>
+	
+	<h3>Preparation outside the plugin</h3>
+	
+	<p>1. Create a vector layer with a feature containing your region of interest as a polygon and save it in
+    ESRI shapefile format. We will refer to this file as <b>ROI vector</b>.</p>
+    <p>2. Download the Landsat 8 scene(s) from http://earthexplorer.usgs.gov/ (you will need an account - free of cost) covering your region of interest.</p>
+    <p>3. Extract the dowloaded archive of the scene. Note: In case you use several scenes for your region of interest merge the resulting directories into one, i.e., all *.TIF files corresponding to the different bands of the scenes have to be in a single directory! We will refer to this as <b>Band directory</b></p>
+    <p>4. Create a vector layer containing ground truth data in form of polygons with an attribute containing the labels of your desired classes within your region of interest. We will refer to this as <b>Train/Test vector</b>.</p>
+	
+	<h3>Preprocessing</h3>
+	<img src="preprocessing.png">
+	<h4>What to enter</h4>
+	
+	<p>The module looks like above. It has three white text fields which can be edited. In the first text field
+	<i>Directory Landsat 8 bands</i> you have to specify the path to the <b>Band directory</b> (see section Preparation outside the plugin), alternatively you can use the button with the three dots next to the text field to open a file browser to search for the file. In the second textfield <i>Input ROI (shp)</i> you have to provide the location of the <b>ROI vector</b> (see section <i>Preparation outside the plugin</i>). In the last text field <i>Output (vrt)</i> you can specify the location and filename of the virtual raster tile the module will produce.
+	If you tick the checkbox <i>Add result to canvas</i> the resulting output will be added to your QGIS layers.
+    Finally run the module by clicking the <i>OK</i> Button. Close the dialog without running it via the <i>Close </i> Button.</p>
+    <p><b>Note:</b> Depending on the machine you are using and the size of your ROI, the processing might take some time and during that time QGIS might be non-responsive.</p>
+	
+	<h4>What happens</h4>
+	
+	<p>The module will first check the number of different scenes that are present in the <b>Band directory </b>and then crop each band for each scene to the region of interest as specified by <b>ROI vector</b> and stack the bands into a single file for each of the scenes. These files are created in the <b>Band directory</b> with a file suffix like <i>*_satex_mul.TIF</i>. Finally, they are virtually stitched together in the file that is specified in the text field <i>Output
+        (vrt)</i>.</p> 
+    <p><b>Note:</b> The resulting *.vrt file only links the <i>*_satex_mul.TIF</i> files created in the <b>Band directory</b> and does not contain the actual data! If you need to transfer the file save it as a regular *.TIF file!</p>
+	
+	
+	<h3>Classification</h3>
+	<img src="classification.png">
+	
+	<h4>What to enter</h4>
+	
+	<p>The module looks like above. It has four white text fields which can be edited. In the first text field
+	<i>Input raster (*.TIF or .vrt)</i> the location of the file to be classified has to be defined (e.g. the virtual raster tile resulting from the <b>Preprocessing</b> module) , alternatively you can use the button with the three dots next to the text field to open a file browser to search for the file. In the second textfield <i>Training/Testing vector (*.shp)</i> you have to provide the location of the <b>Training/Testing vector</b> (see section <i>Preparation outside the plugin</i>). In the fourth text field Class label column name you have to specify the name of the column in your <b>Training/Testing vector</b> that holds the labels of your classes.
+	If you already have a OTB Support Vector model from, e.g., another region, and you like to use this one for the classification rather than training a new one, you can tick <i>Provide external SVM</i> and specify the location of this model in the text field <i>External SVM Model</i>. In the text field <i>Output (*.TIF)</i> you have to specify the location and file name of the resulting raster file containing the class labels. 
+	In case you want to remove small classification regions, e.g., consisting of only 4 pixels and merge these with the largest neighboring regions tick the option <i>Sieve result for regions with pixels less than</i> and specify the minimum number of pixels to remain in the output in the text field next to it. If you tick the checkbox <i>Add result to canvas</i> the resulting output will be added to your QGIS layers.</p>
+	
+	<h4>What happens</h4>
+	
+	<p>The module distinguishes two cases. If you provided an external SVM model, the provided image is classified using this model and all provided features in the <b>Training/Testing vector</b> is used for testing.
+	You will find a csv file containing the Confusion Matrix created in the same location as your <b>Training/Testing vector</b> with the same name, but ending with <i>*_CM.csv</i> instead of <i>*.shp</i>. In the second case where no external SVM model is provided the <b>Training/Testing vector</b> will be split in two files at the same location as the <b>Training/Testing vector</b> and with the same name, but ending with <i>*_test.shp</i> and <i>*_train.shp</i>, respectively. The splitting is done with the fix ratio of features of ~80% training and ~20% testing data with the same number of feature samples (at least one) from each class ( <b>Note:</b> The number of pixels in each of the sets depends on the size of the features and is not controlled). The features of the <i>*_train.shp</i> file are then used to train a SVM based on the libsvm implementation of OTB. The resulting model created at the location of the <b>Training/Testing vector</b> and with the same name, but ending with <i>*_svmModel.svm </i>is then used to classify the <i>Input raster</i>. The features of the <i>*_test.shp</i> file are then used to calculate a Confusion Matrix at the same location as the <b>Training/Testing vector</b> and the same name, but ending with <i>*_CM.csv</i> instead of <i>*.shp</i>.</p>
+  </body>
+</html>
+
+
+
