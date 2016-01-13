@@ -307,15 +307,15 @@ class SatEx:
             self.Cdlg.lineEdit_6.setEnabled(False)
 
     def show_help(self):
-        import sys
-        source = sys.modules['SatEx'].__file__
+        import webbrowser
+        import inspect
+        
+        source = inspect.currentframe().f_back.f_code.co_filename
+        #sys.modules['SatEx'].__file__
         path = os.path.dirname(source)
         helpfile = os.path.join(path, 'index-en.html')
         url = "file://" + helpfile
-        if os == 'nt':
-            os.system('cmd /c start {}'.format(url))
-        else:
-            os.system('xdg-open {}'.format(url))
+        webbrowser.open(url,new=2)
         #qgis.utils.showPluginHelp(packageName='SatEx')
 
     def errorMsg(self,msg):
