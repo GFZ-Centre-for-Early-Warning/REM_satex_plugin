@@ -9,12 +9,12 @@
 [general]
 name=GFZ SatEx
 qgisMinimumVersion=2.0
-description=L8 processing towards exposure
+description=Landsat 8 pixel-based otb classification towards sampling for exposure estimation
 version=0.1
 author=GFZ Michael Haas
 email=mhaas@gfz-potsdam.de
 
-about=L8 processing towards exposure
+about=Landsat 8 pixel-based otb classification towards sampling for exposure estimation
 
 tracker=q
 repository=w

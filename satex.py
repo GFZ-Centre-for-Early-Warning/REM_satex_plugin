@@ -26,8 +26,9 @@ import PyQt4.QtGui
 import resources
 # Import the code for the dialog
 from satex_dialog import PreprocessingDialog, ClassificationDialog
-import os.path
+import os
 import qgis.utils
+import subprocess
 
 class SatEx:
     """QGIS Plugin Implementation."""
@@ -89,7 +90,7 @@ class SatEx:
         self.Cdlg.lineEdit.clear()
         self.Cdlg.pushButton.clicked.connect(self.select_input_pan)
         self.Cdlg.lineEdit_2.clear()
-        self.Cdlg.pushButton_2.clicked.connect(self.select_roi)
+        self.Cdlg.pushButton_2.clicked.connect(self.select_training)
         self.Cdlg.lineEdit_3.clear()
         self.Cdlg.pushButton_3.clicked.connect(self.select_Coutput_name)
         self.Cdlg.checkBox.clicked.connect(self.switch_external_SVM)
@@ -97,6 +98,13 @@ class SatEx:
         self.Cdlg.pushButton_4.clicked.connect(self.select_CSVM)
         self.Cdlg.lineEdit_6.setText('4')
         self.Cdlg.toolButton.clicked.connect(self.show_help)
+
+        #setup subrpocess differently for windows
+        self.startupinfo = None
+        if os.name == 'nt':
+            self.startupinfo = subprocess.STARTUPINFO()
+            self.startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
 
         #TODO:defaults for development
         #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
@@ -121,7 +129,6 @@ class SatEx:
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return PyQt4.QtCore.QCoreApplication.translate('SatEx', message)
-
 
     def add_action(
         self,
@@ -301,7 +308,7 @@ class SatEx:
             self.Cdlg.lineEdit_6.setEnabled(False)
 
     def show_help(self):
-        qgis.utils.showPluginHelp()
+        qgis.utils.showPluginHelp(filename='index_en.html')
 
     def errorMsg(self,msg):
         self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
@@ -326,7 +333,7 @@ class SatEx:
             import traceback
             import qgis.core
             import ogr
-            import subprocess
+            #import subprocess
 
             try:
                 import otbApplication
@@ -386,7 +393,7 @@ class SatEx:
                             #self.status.emit('Cropping band {} to ROI'.format(band))
                             qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
                             cmd = ['gdalwarp','-overwrite','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
-                            subprocess.check_call(cmd)
+                            subprocess.check_call(cmd,startupinfo=self.startupinfo)
 #                        self.calculate_progress()
                     except Exception as e:
                         e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
@@ -416,7 +423,7 @@ class SatEx:
                     files = [f for f in ut.findFiles(self.ls_path,'*satex_mul.TIF')]
                     for f in files:
                         cmd.append(str(self.ls_path+f))
-                    subprocess.check_call(cmd)
+                    subprocess.check_call(cmd,startupinfo=self.startupinfo)
                     qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(files),self.out_fname)))
                     #self.calculate_progress()
                 except:
@@ -452,7 +459,7 @@ class SatEx:
             import traceback
             import qgis.core
             import ogr
-            import subprocess
+            #import subprocess
 
             self.processed = 0
             self.percentage = 0
@@ -527,8 +534,11 @@ class SatEx:
                 #if sieving is asked perform sieving
                 if self.Cdlg.checkBox_3.isChecked():
                     try:
-                        cmd = ['gdal_sieve.py','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
-                        subprocess.check_call(cmd)
+                        if os=='nt':
+                            cmd = ['gdal_sieve.bat','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
+                        else:
+                            cmd = ['gdal_sieve.py','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
+                        subprocess.check_call(cmd,startupinfo=self.startupinfo)
                     except Exception as e:
                         e = 'Could not execute {}'.format(cmd)
                         raise Exception
