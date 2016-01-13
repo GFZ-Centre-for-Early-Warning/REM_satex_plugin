@@ -105,7 +105,6 @@ class SatEx:
             self.startupinfo = subprocess.STARTUPINFO()
             self.startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-
         #TODO:defaults for development
         #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
         #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
@@ -499,7 +498,7 @@ class SatEx:
                     self.svmModel = self.Cdlg.lineEdit_4.text()
                 else:
                     #split training dataset in 80% train 20% testing
-                    [self.error,self.test,self.train] = ut.split_train(self.in_train,self.label)
+                    [self.error,self.test,self.train] = ut.split_train(self.in_train,self.label,self.startupinfo)
                     if self.error != 'success':
                         e=self.error
                         raise Exception

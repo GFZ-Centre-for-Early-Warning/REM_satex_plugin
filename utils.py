@@ -131,7 +131,7 @@ class utils(object):
     # Classification functions
     ###################################################
 
-    def split_train(self,vector,label):
+    def split_train(self,vector,label,startupinfo):
         '''
         Splits a vector layer into training and testing layers
         with 80%/20% splitting ratio
@@ -223,7 +223,7 @@ class utils(object):
                 print 'test_file:',test_file
                 query_str='('+','.join([str(i) for i in idx_test])+')'
                 cmd = ['ogr2ogr','-overwrite','-where','fid in {}'.format(query_str),str(test_file),str(vector)]
-                subprocess.check_call(cmd)
+                subprocess.check_call(cmd,startupinfo=startupinfo)
             except:
                 error = 'Layer creation {} failed'.format(cmd)
                 raise Exception
@@ -232,7 +232,7 @@ class utils(object):
                 train_file = vector[:-4]+'_train.shp'
                 query_str='('+','.join([str(i) for i in idx_train])+')'
                 cmd = ['ogr2ogr','-overwrite','-where','fid in {}'.format(query_str),str(train_file),str(vector)]
-                subprocess.check_call(cmd)
+                subprocess.check_call(cmd,startupinfo=startupinfo)
             except:
                 error = 'Layer creation {} failed'.format(cmd)
                 raise Exception
