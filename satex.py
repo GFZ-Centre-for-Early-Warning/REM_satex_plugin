@@ -307,7 +307,7 @@ class SatEx:
             self.Cdlg.lineEdit_6.setEnabled(False)
 
     def show_help(self):
-        qgis.utils.showPluginHelp(filename='index_en.html')
+        qgis.utils.showPluginHelp(packageName='SatEx')
 
     def errorMsg(self,msg):
         self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
