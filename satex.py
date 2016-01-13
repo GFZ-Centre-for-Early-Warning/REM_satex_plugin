@@ -307,7 +307,16 @@ class SatEx:
             self.Cdlg.lineEdit_6.setEnabled(False)
 
     def show_help(self):
-        qgis.utils.showPluginHelp(packageName='SatEx')
+        import sys
+        source = sys.modules['SatEx'].__file__
+        path = os.path.dirname(source)
+        helpfile = os.path.join(path, 'index-en.html')
+        url = "file://" + helpfile
+        if os == 'nt':
+            os.system('cmd /c start {}'.format(url))
+        else:
+            os.system('xdg-open {}'.format(url))
+        #qgis.utils.showPluginHelp(packageName='SatEx')
 
     def errorMsg(self,msg):
         self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
