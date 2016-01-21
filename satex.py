@@ -110,9 +110,10 @@ class SatEx:
         #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
         #self.Pdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
         #TODO:defaults for development
-        #self.Cdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
-        #self.Cdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/kerak_training.shp')
-        #self.Cdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test_classes.tif')
+        #self.Cdlg.lineEdit.setText('/home/mhaas/test/test.vrt')
+        #self.Cdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/satex_tests/refdata.shp')
+        #self.Cdlg.lineEdit_3.setText('/home/mhaas/test/test_class.tif')
+        #self.Cdlg.lineEdit_5.setText('label')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -240,11 +241,13 @@ class SatEx:
         self.Pdlg.lineEdit.setText(dirname)
 
     def select_roi(self):
-        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Pdlg, "Select region of interest ","","*.shp")
+        filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Pdlg, "Select region of interest ","","Shapefile (*.shp)")
         self.Pdlg.lineEdit_2.setText(filename)
 
     def select_Poutput_name(self):
-        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Pdlg, "Select output file ","","*.vrt")
+        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Pdlg, "Select output file ","","Virtual Raster Tile (*.vrt)")
+        if filename.split('.')[-1]!='vrt':
+            filename = filename+'.vrt'
         self.Pdlg.lineEdit_3.setText(filename)
 
     def updateCForm(self):
@@ -268,7 +271,9 @@ class SatEx:
         self.Cdlg.lineEdit_4.setText(filename)
 
     def select_Coutput_name(self):
-        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Cdlg, "Select output file ","","")
+        filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Cdlg, "Select output file ","","GeoTIFF (*.tif)")
+        if filename.split('.')[-1]!='tif':
+            filename = filename+'.tif'
         self.Cdlg.lineEdit_3.setText(filename)
 
 
@@ -309,7 +314,7 @@ class SatEx:
     def show_help(self):
         import webbrowser
         import inspect
-        
+
         source = inspect.currentframe().f_back.f_code.co_filename
         #sys.modules['SatEx'].__file__
         path = os.path.dirname(source)

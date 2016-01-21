@@ -174,11 +174,10 @@ class utils(object):
                 #determine number of features
                 nr_features = len(idxs)
                 #nr_features = src_layer.GetFeatureCount()
-                nr_test = int(math.ceil(nr_features*0.2))
+                nr_test = math.ceil(nr_features*0.2)
             except:
                 error = 'Could not find column labeled {} in provided training layer {}'.format(label,vector)
                 raise Exception
-
 
             try:
                 #number of unique class labels
@@ -225,7 +224,7 @@ class utils(object):
                 cmd = ['ogr2ogr','-overwrite','-where','fid in {}'.format(query_str),str(test_file),str(vector)]
                 subprocess.check_call(cmd,startupinfo=startupinfo)
             except:
-                error = 'Layer creation {} failed'.format(cmd)
+                error = 'Layer creation during splitting failed: {}'.format(' '.join(cmd))
                 raise Exception
             try:
                 #train
@@ -234,7 +233,7 @@ class utils(object):
                 cmd = ['ogr2ogr','-overwrite','-where','fid in {}'.format(query_str),str(train_file),str(vector)]
                 subprocess.check_call(cmd,startupinfo=startupinfo)
             except:
-                error = 'Layer creation {} failed'.format(cmd)
+                error = 'Layer creation during splitting failed: {}'.format(' '.join(cmd))
                 raise Exception
         except:
             pass
