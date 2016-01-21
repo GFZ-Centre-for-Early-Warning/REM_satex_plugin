@@ -105,15 +105,17 @@ class SatEx:
             self.startupinfo = subprocess.STARTUPINFO()
             self.startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        #Prefent bug in directory search
+        self.Pdlg.lineEdit.setText(' ')
         #TODO:defaults for development
-        #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81740382015287LGN00')
-        #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/kerak.shp')
-        #self.Pdlg.lineEdit_3.setText('/home/mhaas/PhD/Routines/rst/test.vrt')
+        #self.Pdlg.lineEdit.setText('Path to L8 directory')
+        #self.Pdlg.lineEdit_2.setText('Path to ROI shapefile')
+        #self.Pdlg.lineEdit_3.setText('Path to output-vrt')
         #TODO:defaults for development
-        #self.Cdlg.lineEdit.setText('/home/mhaas/test/test.vrt')
-        #self.Cdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/satex_tests/refdata.shp')
-        #self.Cdlg.lineEdit_3.setText('/home/mhaas/test/test_class.tif')
-        #self.Cdlg.lineEdit_5.setText('label')
+        #self.Cdlg.lineEdit.setText('Path to vrt')
+        #self.Cdlg.lineEdit_2.setText('Path to training shapefile')
+        #self.Cdlg.lineEdit_3.setText('Path to output-tif')
+        #self.Cdlg.lineEdit_5.setText('Training class label')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -235,6 +237,10 @@ class SatEx:
         self.ls_path = self.Pdlg.lineEdit.text()+'/'
         self.roi = self.Pdlg.lineEdit_2.text()
         self.out_fname = self.Pdlg.lineEdit_3.text()
+        if (self.ls_path ==' /' or self.roi == '' or self.out_fname == ''):
+            return False
+        else:
+            return True
 
     def select_input_raster(self):
         dirname = PyQt4.QtGui.QFileDialog.getExistingDirectory(self.Pdlg, "Select input directory ","",PyQt4.QtGui.QFileDialog.ShowDirsOnly)
@@ -257,6 +263,10 @@ class SatEx:
         self.out_fname = self.Cdlg.lineEdit_3.text()
         self.label = self.Cdlg.lineEdit_5.text()
         self.sieve = self.Cdlg.lineEdit_6.text()
+        if (self.raster =='' or self.in_train == '' or self.out_fname == '' or self.label == '' or self.sieve == ''):
+            return False
+        else:
+            return True
 
     def select_input_pan(self):
         filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Cdlg, "Select input layerstacked virtual raster tile","","*.vrt")
@@ -338,8 +348,8 @@ class SatEx:
             self.percentage = 0
             #TODO:fix
             self.ntasks = 3
-            #Get user edits
-            self.updatePForm()
+            #Get user edits and check if not empty
+            valid_input=self.updatePForm()
             #self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
 
             import utils
@@ -359,6 +369,13 @@ class SatEx:
             #instantiate utilities function
             ut = utils.utils()
             try:
+                try:
+                    #check if input is not empty string
+                    1/valid_input
+                except Exception as e:
+                    e = str('Please fill all required input fields')
+                    raise Exception
+
                 try:
                     #delete any old tmp files that might be in the directory from a killed task
                     old=ut.delete_tmps(self.ls_path)
@@ -460,6 +477,7 @@ class SatEx:
 
     def run_classification(self):
         """Run method that performs all the real work"""
+        self.Cdlg.setModal(False)
         self.Cdlg.show()
 
         #external SVM model switch
@@ -479,7 +497,7 @@ class SatEx:
             #TODO:fix
             self.ntasks = 3
             #Get user edits
-            self.updateCForm()
+            valid_input=self.updateCForm()
             #TODO:fix
             self.classification_type='libsvm'
             self.svmModel = self.in_train[:-4]+'_svmModel.svm'
@@ -494,6 +512,14 @@ class SatEx:
             try:
                 #instantiate utilities functions
                 ut = utils.utils()
+
+                try:
+                    #check if input is not empty string
+                    1/valid_input
+                except Exception as e:
+                    e = str('Please fill all required input fields')
+                    raise Exception
+
                 #generate image statistics
                 try:
                     self.stats = str(self.raster[:-4]+'_stats.xml')
