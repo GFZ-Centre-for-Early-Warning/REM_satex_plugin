@@ -487,9 +487,6 @@ class SatEx:
         self.Cdlg.setModal(False)
         self.Cdlg.show()
 
-        #external SVM model switch
-        self.external=False
-
         #Dialog event loop
         result = self.Cdlg.exec_()
         if result:
