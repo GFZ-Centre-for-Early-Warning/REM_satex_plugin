@@ -265,7 +265,7 @@ class SatEx:
         self.sieve = self.Cdlg.lineEdit_6.text()
         #in case an external SVM is provided the testing is optional
         if self.external:
-            if (self.raster =='' or self.out_fname == '' or self.label == '' or self.sieve == ''):
+            if (self.raster =='' or self.out_fname == '' or self.sieve == ''):
                 return False
             else:
                 return True
@@ -538,9 +538,10 @@ class SatEx:
                     raise Exception
 
                 #differntiate two cases case 1) external SVM provided an case 2) on the fly SVM training
-                if self.external and self.in_train!='':
-                    #use full training set for testing
-                    self.test = self.in_train
+                if self.external:
+                    if self.in_train!='':
+                        #use full training set for testing
+                        self.test = self.in_train
                     #get SVM filename
                     self.svmModel = self.Cdlg.lineEdit_4.text()
                 else:
