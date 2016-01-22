@@ -13,7 +13,7 @@
 	
 	<h2>Requirements</h2>
 	
-	<p>The plugin requires QGIS (>=2.0) and an installation of the Orfeo Toolbox (OTB)</p>
+	<p>The plugin requires QGIS (>=2.8) and an installation of the Orfeo Toolbox (OTB)</p>
 	
 	<h2>Purpose of the Plugin</h2>
 	
@@ -70,7 +70,7 @@
 	
 	<h4>What happens</h4>
 	
-	<p>The module distinguishes two cases. If you provided an external SVM model, the provided image is classified using this model and all provided features in the <b>Training/Testing vector</b> is used for testing.
+	<p>The module distinguishes two cases. If you provided an external SVM model, the provided image is classified using this model and if filled, all provided features in the <b>Training/Testing vector</b> are used for testing.
 	You will find a csv file containing the Confusion Matrix created in the same location as your <b>Training/Testing vector</b> with the same name, but ending with <i>*_CM.csv</i> instead of <i>*.shp</i>. In the second case where no external SVM model is provided the <b>Training/Testing vector</b> will be split in two files at the same location as the <b>Training/Testing vector</b> and with the same name, but ending with <i>*_test.shp</i> and <i>*_train.shp</i>, respectively. The splitting is done with the fix ratio of features of ~80% training and ~20% testing data with the same number of feature samples (at least one) from each class ( <b>Note:</b> The number of pixels in each of the sets depends on the size of the features and is not controlled). The features of the <i>*_train.shp</i> file are then used to train a SVM based on the libsvm implementation of OTB. The resulting model created at the location of the <b>Training/Testing vector</b> and with the same name, but ending with <i>*_svmModel.svm </i>is then used to classify the <i>Input raster</i>. The features of the <i>*_test.shp</i> file are then used to calculate a Confusion Matrix at the same location as the <b>Training/Testing vector</b> and the same name, but ending with <i>*_CM.csv</i> instead of <i>*.shp</i>.</p>
   </body>
 </html>

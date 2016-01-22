@@ -263,10 +263,17 @@ class SatEx:
         self.out_fname = self.Cdlg.lineEdit_3.text()
         self.label = self.Cdlg.lineEdit_5.text()
         self.sieve = self.Cdlg.lineEdit_6.text()
-        if (self.raster =='' or self.in_train == '' or self.out_fname == '' or self.label == '' or self.sieve == ''):
-            return False
+        #in case an external SVM is provided the testing is optional
+        if self.external:
+            if (self.raster =='' or self.out_fname == '' or self.label == '' or self.sieve == ''):
+                return False
+            else:
+                return True
         else:
-            return True
+            if (self.raster =='' or self.in_train == '' or self.out_fname == '' or self.label == '' or self.sieve == ''):
+                return False
+            else:
+                return True
 
     def select_input_pan(self):
         filename = PyQt4.QtGui.QFileDialog.getOpenFileName(self.Cdlg, "Select input layerstacked virtual raster tile","","*.vrt")
@@ -531,7 +538,7 @@ class SatEx:
                     raise Exception
 
                 #differntiate two cases case 1) external SVM provided an case 2) on the fly SVM training
-                if self.external:
+                if self.external and self.in_train!='':
                     #use full training set for testing
                     self.test = self.in_train
                     #get SVM filename
@@ -564,8 +571,10 @@ class SatEx:
 
                 #confusion matrix
                 try:
-                    ut.otb_confusion_matrix(self.out_fname,self.ConfMatrix,self.test,self.label)
-                    qgis.core.QgsMessageLog.logMessage(str('Confusion matrix calcualted on classified image {} with test set {} saved as {}'.format(self.out_fname,self.test,self.ConfMatrix)))
+                    #testing is optional in case of externally provided SVM
+                    if self.in_train!='':
+                        ut.otb_confusion_matrix(self.out_fname,self.ConfMatrix,self.test,self.label)
+                        qgis.core.QgsMessageLog.logMessage(str('Confusion matrix calcualted on classified image {} with test set {} saved as {}'.format(self.out_fname,self.test,self.ConfMatrix)))
                 except Exception as e:
                     e = 'Could not execute OTB Confusion Matrix with {}, {}, {}, {}'.format(self.out_fname, self.ConfMatrix, self.test, self.label)
                     raise Exception
