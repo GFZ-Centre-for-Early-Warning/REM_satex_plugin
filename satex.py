@@ -573,7 +573,7 @@ class SatEx:
                 #if sieving is asked perform sieving
                 if self.Cdlg.checkBox_3.isChecked():
                     try:
-                        if os=='nt':
+                        if os.name=='nt':
                             cmd = ['gdal_sieve.bat','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
                         else:
                             cmd = ['gdal_sieve.py','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
