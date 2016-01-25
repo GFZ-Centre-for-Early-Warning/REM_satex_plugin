@@ -108,9 +108,9 @@ class SatEx:
         #Prefent bug in directory search
         self.Pdlg.lineEdit.setText(' ')
         #TODO:defaults for development
-        #self.Pdlg.lineEdit.setText('Path to L8 directory')
-        #self.Pdlg.lineEdit_2.setText('Path to ROI shapefile')
-        #self.Pdlg.lineEdit_3.setText('Path to output-vrt')
+        self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
+        self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
+        self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
         #TODO:defaults for development
         #self.Cdlg.lineEdit.setText('Path to vrt')
         #self.Cdlg.lineEdit_2.setText('Path to training shapefile')
@@ -263,6 +263,9 @@ class SatEx:
         self.out_fname = self.Cdlg.lineEdit_3.text()
         self.label = self.Cdlg.lineEdit_5.text()
         self.sieve = self.Cdlg.lineEdit_6.text()
+        self.external = False
+        if self.Cdlg.checkBox.isChecked():
+            self.external=True
         #in case an external SVM is provided the testing is optional
         if self.external:
             if (self.raster =='' or self.out_fname == '' or self.sieve == ''):
@@ -423,6 +426,13 @@ class SatEx:
                         e = str('Could not find all 10 bands (excluding B8 and BQA) for scene {}'.format(scene))
                         raise Exception
 
+                    #Check if ROI and scene overlap
+                    try:
+                        1/ut.vector_raster_overlap(self.roi,self.ls_path+scene+'_B1.TIF')
+                    except:
+                        e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
+                        raise Exception
+
                     #use gdalwarp to cut bands to roi
                     try:
                         #go through bands
@@ -489,6 +499,7 @@ class SatEx:
 
         #Dialog event loop
         result = self.Cdlg.exec_()
+
         if result:
             import utils
             import traceback
@@ -523,6 +534,14 @@ class SatEx:
                 except Exception as e:
                     e = str('Please fill all required input fields')
                     raise Exception
+
+                #check if training fields overlap with raster
+                if not self.external:
+                    try:
+                        1/ut.vector_raster_overlap(self.in_train,self.raster)
+                    except:
+                        e = str('At least one feature in {} does not overlap with {}'.format(self.in_train,self.raster))
+                        raise Exception
 
                 #generate image statistics
                 try:

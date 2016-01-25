@@ -39,6 +39,69 @@ class utils(object):
     # Preprocessing functions
     ###################################################
 
+    def vector_raster_overlap(self,vector_file,raster_file):
+        '''
+        Function to determine if the polygon(s) in a vector overlap with a raster
+	return true if all overlap false otherwise
+        '''
+        import ogr
+        import gdal
+        import osr
+
+	raster = gdal.Open(raster_file)
+        driver = ogr.GetDriverByName('ESRI Shapefile')
+	vector = driver.Open(vector_file)
+	layer = vector.GetLayer()
+
+        #determine srs of raster and vector
+        srs1 = osr.SpatialReference(raster.GetProjection())
+        srs2 = layer.GetSpatialRef()
+        #create transform
+        coordTrans = osr.CoordinateTransformation(srs1, srs2)
+
+	# Get raster geometry
+	transform = raster.GetGeoTransform()
+	pixelWidth = transform[1]
+        #if width defined negative set positive
+        if pixelWidth < 0: pixelWidth=-pixelWidth
+	pixelHeight = transform[5]
+        #if height defined negative set positive
+        if pixelHeight < 0: pixelHeight=-pixelHeight
+	cols = raster.RasterXSize
+	rows = raster.RasterYSize
+
+	xLeft = transform[0]
+	yTop = transform[3]
+	xRight = xLeft+cols*pixelWidth
+	yBottom = yTop-rows*pixelHeight
+
+	ring = ogr.Geometry(ogr.wkbLinearRing)
+	ring.AddPoint(xLeft, yTop)
+	ring.AddPoint(xRight, yTop)
+	ring.AddPoint(xRight, yBottom)
+	ring.AddPoint(xLeft, yBottom)
+	ring.AddPoint(xLeft, yTop)
+	rasterGeometry = ogr.Geometry(ogr.wkbPolygon)
+        rasterGeometry.AssignSpatialReference(srs1)
+	rasterGeometry.AddGeometry(ring)
+
+        #reproject
+        rasterGeometry.Transform(coordTrans)
+
+	# Get feature geometry
+        overlap = True
+        while True:
+            try:
+                feature = layer.GetNextFeature()
+                #make sure a feature was returned and not None
+                feature.GetFID()
+                #check intersect
+                overlap=rasterGeometry.Intersect(feature.GetGeometryRef())
+            except:
+                break
+
+        return overlap
+
     def otb_concatenate(self,in_files,out_file):
         '''
         Wrapper for OTB ConcatenateImages
