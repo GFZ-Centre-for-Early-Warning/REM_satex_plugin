@@ -59,12 +59,6 @@ class SatEx:
             if PyQt4.QtCore.qVersion() > '4.3.3':
                 PyQt4.QtCore.QCoreApplication.installTranslator(self.translator)
 
-        try:
-            import otbApplication
-        except:
-            print 'Error: Plugin requires installation of OrfeoToolbox'
-            raise RuntimeError
-
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr(u'&GFZ SatEx')
@@ -105,12 +99,12 @@ class SatEx:
             self.startupinfo = subprocess.STARTUPINFO()
             self.startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        #Prefent bug in directory search
+        #Prefent bug in directory search (added / on linux results in searching the root directory)
         self.Pdlg.lineEdit.setText(' ')
         #TODO:defaults for development
-        self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
-        self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
-        self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
+        #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
+        #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
+        #self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
         #TODO:defaults for development
         #self.Cdlg.lineEdit.setText('Path to vrt')
         #self.Cdlg.lineEdit_2.setText('Path to training shapefile')
@@ -371,7 +365,7 @@ class SatEx:
             try:
                 import otbApplication
             except:
-                print 'Plugin requires installation of OrfeoToolbox'
+                self.errorMsg('Plugin requires installation of OrfeoToolbox')
 
             #find the number of different L8 scenes
             #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
@@ -521,7 +515,7 @@ class SatEx:
             try:
                 import otbApplication
             except:
-                print 'Plugin requires installation of OrfeoToolbox'
+                self.errorMsg('Plugin requires installation of OrfeoToolbox')
 
             e = 'unspecified error'
             try:

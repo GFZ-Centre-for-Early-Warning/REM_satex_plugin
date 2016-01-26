@@ -111,8 +111,8 @@ class utils(object):
         ConcatenateImages = otbApplication.Registry.CreateApplication("ConcatenateImages")
 
         # The following lines set all the application parameters:
-        ConcatenateImages.SetParameterStringList("il", in_files)
-        ConcatenateImages.SetParameterString("out", out_file)
+        ConcatenateImages.SetParameterStringList("il", [str(s) for s in in_files])
+        ConcatenateImages.SetParameterString("out", str(out_file))
         ConcatenateImages.SetParameterOutputImagePixelType("out", 2)
         # The following line execute the application
         ConcatenateImages.ExecuteAndWriteOutput()
