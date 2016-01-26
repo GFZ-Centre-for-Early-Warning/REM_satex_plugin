@@ -102,6 +102,9 @@ class SatEx:
         #Prefent bug in directory search (added / on linux results in searching the root directory)
         self.Pdlg.lineEdit.setText(' ')
         #TODO:defaults for development
+        #self.Pdlg.lineEdit.setText('C:\Users\michael\Desktop\plugin data\LC81680542015357LGN00')
+        #self.Pdlg.lineEdit_2.setText('C:/Users/michael/Desktop/plugin data/adisababa.shp')
+        #self.Pdlg.lineEdit_3.setText('C:/Users/michael/Desktop/test.vrt')
         #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
         #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
         #self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
