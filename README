@@ -1,0 +1,79 @@
+
+SatEx QGSI Plugin
+
+GFZ German Research Centre for Geosciences - Centre for Early Warning Systems 
+Author: Michael Haas
+Date: January 12, 2016
+The plugin requires QGIS (&gt;=2.8) and an installation of the
+Orfeo Toolbox (OTB)
+
+######################
+Installation
+######################
+The plugin can be installed via the QGIS Plugin Manager
+or by putting this repository in .qgis2/python/plugins/
+and running make deploy from within the repository.
+
+######################
+Software Requirements
+######################
+The plugin requires an installation of the Orfeo Toolbox (OTB;
+details: www.orfeo-toolbox.org). On Windows you can install it
+via OSGeo4W on Linux you can install it from packages provided
+by your distribution or build it from the source packages available
+from its git repository.
+
+Note: Some Linux distributions split OTB in different packages,
+in order for this plugin to work make sure the python wrappers
+are installed alongside with the otb library. You can check if OTB
+and the wrappers are installed from within qgis by opening the 
+Python Console and typing (without the >):
+
+> import otbApplication
+> otbApplication.Registry.GetAvailableApplications()
+
+This should return you a list of otb functions if it's working.
+
+######################
+Purpose of the Plugin
+######################
+
+Plugin that provides two algorithms for the processing of one or
+multiple Landsat 8 scenes within a region of interest towards a
+Landuse/Landcoverage classification streamlining all required
+processing steps to perform a libsvm/orfeo toolbox (OTB) pixel based
+classification.
+
+########################
+Structure of the Plugin
+########################
+The Plugin is structured in two modules:
+1. Preprocessing, and
+2. Classification 
+
+In the "Preprocessing" algorithm Landsat 8 scenes located in
+a directory as , e.g., the directory created by extracting from the
+downloaded zip archive of a Landsat 8 scene as can be found on
+EarthExplorer http://earthexplorer.usgs.gov/ is 
+1) cropped to a region of interest provided as , e.g., a polygon feature in a vector
+file and then 
+2) the separate spectral Bands 1-7,9-11 are stacked and
+3) a virtual raster tile is created out of these, i.e., in case the
+region of interest stretches over more than one Landsat 8 scene. The
+"Classification" algorithm is performing a classification of a
+raster file as, e.g., resulting from the "Preprocessing" algorithm
+and either by using a provided trained Support Vector Model (SVM)
+from OTB or training and testing a SVM on the fly using a provided
+ground truth testing/training data set. In the case a on the fly
+training/testing is performed the provided ground truth data is
+randomly split in a testing (~20%) and a training part (~80%), the
+latter is then used in the libsvm implementation of OTB to create a
+SVM. This SVM (or the external SVM) are then used to classify the
+image. The resulting raster file with class labels is then tested
+with the testing dataset (all features of the provided vector layer
+in case an external SVM model was provided) and a confusion matrix is
+produced. Finally the resulting raster file is sieved (i.e., regions
+consisting of view pixels are merged to the surrounding).
+
+You can find further informations on the usage of the plugin in the 
+enclosed plugin documentation.
