@@ -8,13 +8,13 @@
 
 [general]
 name=GFZ SatEx
-qgisMinimumVersion=2.0
-description=Landsat 8 pixel-based otb classification towards sampling for exposure estimation
+qgisMinimumVersion=2.8
+description=Plugin to perform a pixel-based SVM classification using OTB for provided Landsat 8 satellite imagery, a region of interest and training/testing features. 
 version=0.1
-author=GFZ Michael Haas
+author=Michael Haas (German Research Centre for Geosciences, GFZ - Centre for Early Warning Systems)
 email=mhaas@gfz-potsdam.de
 
-about=Landsat 8 pixel-based otb classification towards sampling for exposure estimation
+about=GFZ SatEx - Plugin to perform a pixel-based SVM classification using the OrfeoToolbox (OTB; <https://www.orfeo-toolbox.org/>, OTB is an external requirement that has to be installed in order to use the plugin, it is installable via OSGeo4W). Input required is Landsat 8 satellite imagery, a vector file containing a polygon feature representing the 'Region of Interest' and a vector layer containing ground truth training/testing polygon features.Copyright (C) 2016  Michael Haas This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 tracker=q
 repository=w
@@ -32,7 +32,7 @@ homepage=e
 category=Plugins
 icon=icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False

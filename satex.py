@@ -3,7 +3,7 @@
 /***************************************************************************
  SatEx
                                  A QGIS plugin
- L8 processing towards exposure
+ Pixel based classifiction of Landsat 8 Satellite imagery
                               -------------------
         begin                : 2015-12-14
         git sha              : $Format:%H$
@@ -13,10 +13,18 @@
 
 /***************************************************************************
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
+ *  This program is free software: you can redistribute it and/or modify   *
  *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
+ *   the Free Software Foundation, either version 3 of the License, or     *
  *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>  *
  *                                                                         *
  ***************************************************************************/
 """
@@ -411,24 +419,38 @@ class SatEx:
                     try:
                         bands = [b for b in ut.findFiles(self.ls_path,scene+'*_B*.TIF') if '_BQA' not in b]
                         bands = [b for b in bands if '_B8' not in b]
-                        #check if there are 10 bands
-                        #if len(bands)!=11:
-                        if len(bands)!=10:
-                            e = str('Found {} instead of 10 bands (excluding B8 and BQA) for scene {}'.format(len(bands),scene))
-                            raise Exception
+                        #in case of multiple scenes (and not first scene is processed) check if nr of bands are equal
+                        try:
+                            #only if more than one scene and at least second scene
+                            nr_bands
+                        except:
+                            #store number of bands for potential additonal scenes
+                            nr_bands = len(bands)
+                            qgis.core.QgsMessageLog.logMessage(str('Found {} bands (if present, excluding B8 and BQA) for scene {} '.format(nr_bands,scene)))
                         else:
-                            #self.status.emit('Found all 11 bands for scene {}'.format(scene))
-                            qgis.core.QgsMessageLog.logMessage(str('Found all 10 bands (excluding B8 and BQA) for scene {} '.format(scene)))
-                    except Exception as e:
-                        e = str('Could not find all 10 bands (excluding B8 and BQA) for scene {}'.format(scene))
+                            if len(bands)!=nr_bands:
+                                e = str('Found {} instead of {} bands (excluding B8 and BQA) for scene {}. If multiple scenes are provided in the input directory, ensure they have equal bands!'.format(len(bands),nr_bands,scene))
+                                raise Exception
+                            else:
+                                qgis.core.QgsMessageLog.logMessage(str('Found {} bands (if present, excluding B8 and BQA) for scene {} '.format(len(bands),scene)))
+                    except:
                         raise Exception
 
                     #Check if ROI and scene overlap
                     try:
-                        1/ut.vector_raster_overlap(self.roi,self.ls_path+scene+'_B1.TIF')
+                        error,overlap = ut.vector_raster_overlap(self.roi,self.ls_path+scene+'_B1.TIF')
                     except:
-                        e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
+                        e = str('Unspecified error while trying to execute utils.vector_raster_overlap function')
                         raise Exception
+                    if error!='SUCCESS':
+                        e = error
+                        raise Exception
+                    else:
+                        try:
+                            1/overlap
+                        except:
+                            e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
+                            raise Exception
 
                     #use gdalwarp to cut bands to roi
                     try:
