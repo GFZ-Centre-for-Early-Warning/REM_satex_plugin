@@ -327,12 +327,12 @@ class SatEx:
 
     def show_help(self):
         import webbrowser
-        import inspect
+        import os
+        import sys
 
-        source = inspect.currentframe().f_back.f_code.co_filename
-        #sys.modules['SatEx'].__file__
-        path = os.path.dirname(source)
-        helpfile = os.path.join(path, '/help/build/html/index.html')
+        #source = inspect.currentframe().f_back.f_code.co_filename
+        path_name = os.path.dirname(sys.modules['SatEx'].__file__)
+        helpfile = path_name + '/help/index.html'
         url = "file://" + helpfile
         webbrowser.open(url,new=2)
         #qgis.utils.showPluginHelp(packageName='SatEx')
