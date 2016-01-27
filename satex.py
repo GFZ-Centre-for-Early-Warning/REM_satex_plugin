@@ -3,23 +3,33 @@
 /***************************************************************************
  SatEx
                                  A QGIS plugin
- L8 processing towards exposure
+Streamlined algorithms for pixel based classification of satellite imagery
+using OTB.
                               -------------------
         begin                : 2015-12-14
         git sha              : $Format:%H$
-        copyright            : (C) 2015 by GFZ Michael Haas
+        copyright            : (C) 2016 by Michael Haas (GFZ)
         email                : mhaas@gfz-potsdam.de
  ***************************************************************************/
 
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
+/****************************************************************************
+ *                                                                          *
+ *    This program is free software: you can redistribute it and/or modify  *
+ *    it under the terms of the GNU General Public License as published by  *
+ *    the Free Software Foundation, either version 3 of the License, or     *
+ *    (at your option) any later version.                                   *
+ *                                                                          *
+ *    This program is distributed in the hope that it will be useful,       *
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *    GNU General Public License for more details.                          *
+ *                                                                          *
+ *    You should have received a copy of the GNU General Public License     *
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+ *                                                                          *
+ ****************************************************************************/
 """
+
 import PyQt4.QtCore
 import PyQt4.QtGui
 # Initialize Qt resources from file resources.py
@@ -101,15 +111,6 @@ class SatEx:
 
         #Prefent bug in directory search (added / on linux results in searching the root directory)
         self.Pdlg.lineEdit.setText(' ')
-        #TODO:defaults for development
-        #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
-        #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
-        #self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
-        #TODO:defaults for development
-        #self.Cdlg.lineEdit.setText('Path to vrt')
-        #self.Cdlg.lineEdit_2.setText('Path to training shapefile')
-        #self.Cdlg.lineEdit_3.setText('Path to output-tif')
-        #self.Cdlg.lineEdit_5.setText('Training class label')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -290,16 +291,6 @@ class SatEx:
             filename = filename+'.tif'
         self.Cdlg.lineEdit_3.setText(filename)
 
-
-    #def calculate_progress(self):
-    #    self.processed = self.processed + 1
-    #    percentage_new = (self.processed * 100) / self.ntasks
-    #    if percentage_new > self.percentage:
-    #        self.percentage = percentage_new
-
-    #def updateTextbox(self,msg):
-    #    self.textBrowser.append(msg)
-
     def switch_external_SVM(self):
         '''
         Activates the external SVM dialog parts
@@ -308,15 +299,11 @@ class SatEx:
             self.Cdlg.lineEdit_4.setEnabled(True)
             self.Cdlg.pushButton_4.setEnabled(True)
             self.Cdlg.label_5.setEnabled(True)
-            #self.Cdlg.lineEdit_5.setDisabled(True)
-            #self.Cdlg.label_6.setDisabled(True)
             self.external=True
         else:
             self.Cdlg.lineEdit_4.setDisabled(True)
             self.Cdlg.pushButton_4.setDisabled(True)
             self.Cdlg.label_5.setDisabled(True)
-            #self.Cdlg.lineEdit_5.setEnabled(True)
-            #self.Cdlg.label_6.setEnabled(True)
             self.external=False
 
     def switch_sieve(self):
@@ -330,12 +317,10 @@ class SatEx:
         import os
         import sys
 
-        #source = inspect.currentframe().f_back.f_code.co_filename
         path_name = os.path.dirname(sys.modules['SatEx'].__file__)
         helpfile = path_name + '/help/index.html'
         url = "file://" + helpfile
         webbrowser.open(url,new=2)
-        #qgis.utils.showPluginHelp(packageName='SatEx')
 
     def errorMsg(self,msg):
         self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
@@ -348,10 +333,6 @@ class SatEx:
         #Dialog event loop
         result = self.Pdlg.exec_()
         if result:
-            self.processed = 0
-            self.percentage = 0
-            #TODO:fix
-            self.ntasks = 3
             #Get user edits and check if not empty
             valid_input=self.updatePForm()
             #self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
@@ -414,7 +395,6 @@ class SatEx:
                             e = str('Found {} instead of 10 bands (excluding B8 and BQA) for scene {}'.format(len(bands),scene))
                             raise Exception
                         else:
-                            #self.status.emit('Found all 11 bands for scene {}'.format(scene))
                             qgis.core.QgsMessageLog.logMessage(str('Found all 10 bands (excluding B8 and BQA) for scene {} '.format(scene)))
                     except Exception as e:
                         e = str('Could not find all 10 bands (excluding B8 and BQA) for scene {}'.format(scene))
@@ -431,11 +411,9 @@ class SatEx:
                     try:
                         #go through bands
                         for band in bands:
-                            #self.status.emit('Cropping band {} to ROI'.format(band))
                             qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
                             cmd = ['gdalwarp','-overwrite','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
                             subprocess.check_call(cmd,startupinfo=self.startupinfo)
-#                        self.calculate_progress()
                     except Exception as e:
                         e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
                         raise Exception
@@ -443,11 +421,12 @@ class SatEx:
                     # Layerstack
                     try:
                         #respect order B1,B2,B3,B4,B5,B6,B7,B9,B10,B11
-                        #in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands if '_B8' not in b]
                         in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands]
                         in_files.sort()
+                        #if landsat 8
                         #B10,B11 considered smaller --> resort
-                        in_files = in_files[2:] + in_files[0:2]
+                        if nr_bands == 10:
+                            in_files = in_files[2:] + in_files[0:2]
                         out_file = str(self.ls_path+scene+'_satex_mul.TIF')
                         #call otb wrapper
                         #self.status.emit('Concatenating bands for pansharpening scene {}'.format(scene))
@@ -499,12 +478,7 @@ class SatEx:
             import traceback
             import qgis.core
             import ogr
-            #import subprocess
 
-            self.processed = 0
-            self.percentage = 0
-            #TODO:fix
-            self.ntasks = 3
             #Get user edits
             valid_input=self.updateCForm()
             #TODO:fix
@@ -542,7 +516,6 @@ class SatEx:
                     self.stats = str(self.raster[:-4]+'_stats.xml')
                     ut.otb_image_statistics(str(self.raster),str(self.stats))
                     qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(self.stats,self.raster)))
-                    #self.calculate_progress()
                 except:
                     e = str('Could not execute OTB Image Statistics on: {}'.format(self.raster))
                     raise Exception
@@ -609,10 +582,6 @@ class SatEx:
             except:
                 self.errorMsg(e)
                 qgis.core.QgsMessageLog.logMessage(e)
-                qgis.core.QgsMessageLog.logMessage(str('Exception: Deleting temporary files'))
-                #ut.delete_tmps(self.ls_path)
             else:
                 qgis.core.QgsMessageLog.logMessage(str('Processing completed'))
-                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
                 self.iface.messageBar().pushMessage('Processing successfully completed, see log for details',self.iface.messageBar().SUCCESS,duration=3)
-                #ut.delete_tmps(self.ls_path)

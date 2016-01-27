@@ -1,4 +1,35 @@
-# Function in use for the plugin
+# -*- coding: utf-8 -*-
+"""
+/***************************************************************************
+ SatEx
+                                 A QGIS plugin
+Streamlined algorithms for pixel based classification of satellite imagery
+using OTB.
+                              -------------------
+        begin                : 2015-12-14
+        git sha              : $Format:%H$
+        copyright            : (C) 2016 by Michael Haas (GFZ)
+        email                : mhaas@gfz-potsdam.de
+ ***************************************************************************/
+
+/****************************************************************************
+ *                                                                          *
+ *    This program is free software: you can redistribute it and/or modify  *
+ *    it under the terms of the GNU General Public License as published by  *
+ *    the Free Software Foundation, either version 3 of the License, or     *
+ *    (at your option) any later version.                                   *
+ *                                                                          *
+ *    This program is distributed in the hope that it will be useful,       *
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *    GNU General Public License for more details.                          *
+ *                                                                          *
+ *    You should have received a copy of the GNU General Public License     *
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+ *                                                                          *
+ ****************************************************************************/
+"""
+# Functions in use for the plugin
 import os
 import fnmatch
 import otbApplication
@@ -116,63 +147,6 @@ class utils(object):
         ConcatenateImages.SetParameterOutputImagePixelType("out", 2)
         # The following line execute the application
         ConcatenateImages.ExecuteAndWriteOutput()
-
-    def otb_resample(self,in_file,out_file):
-        '''
-        Wrapper for OTB RigidTransformResample doubles x,y resolution
-        input: - input file name
-               - output file name
-        '''
-        # The following line creates an instance of the RigidTransformResample application
-        RigidTransformResample = otbApplication.Registry.CreateApplication("RigidTransformResample")
-
-        # The following lines set all the application parameters:
-        RigidTransformResample.SetParameterString("in", in_file)
-        RigidTransformResample.SetParameterString("out", out_file)
-        RigidTransformResample.SetParameterString("transform.type","id")
-        RigidTransformResample.SetParameterFloat("transform.type.id.scalex", 2.)
-        RigidTransformResample.SetParameterFloat("transform.type.id.scaley", 2.)
-        RigidTransformResample.SetParameterOutputImagePixelType("out", 2)
-
-        # The following line execute the application
-        RigidTransformResample.ExecuteAndWriteOutput()
-
-    def otb_superimpose(self,in_file_ref,in_file_inm,out_file):
-        '''
-        Wrapper for OTB Superimpose using bicubic interpolation
-        input: - in_file_ref input file as reference
-               - in_file_inm input file to superimpose
-               - output file name
-        '''
-	# The following line creates an instance of the Superimpose application
-        Superimpose = otbApplication.Registry.CreateApplication("Superimpose")
-        # The following lines set all the application parameters:
-        Superimpose.SetParameterString("inr", in_file_ref)
-        Superimpose.SetParameterString("inm", in_file_inm)
-        Superimpose.SetParameterString("out", out_file)
-        Superimpose.SetParameterString("interpolator","bco")
-        Superimpose.SetParameterString("interpolator.bco.radius","2")
-        Superimpose.SetParameterOutputImagePixelType("out", 2)
-        # The following line execute the application
-        Superimpose.ExecuteAndWriteOutput()
-
-    def otb_pansharpen(self,in_file_pan,in_file_mul,out_file):
-        '''
-        Wrapper for OTB Pansharpen
-        input: - input panchromatic file
-               - input multiband file
-               - output file name
-        '''
-        # The following line creates an instance of the Pansharpening application
-        Pansharpening = otbApplication.Registry.CreateApplication("Pansharpening")
-
-        # The following lines set all the application parameters:
-        Pansharpening.SetParameterString("inp", in_file_pan)
-        Pansharpening.SetParameterString("inxs", in_file_mul)
-        Pansharpening.SetParameterString("out", out_file)
-        Pansharpening.SetParameterOutputImagePixelType("out", 2)
-        # The following line execute the application
-        Pansharpening.ExecuteAndWriteOutput()
 
     def otb_split(self,in_file_mul,out_file):
         '''
