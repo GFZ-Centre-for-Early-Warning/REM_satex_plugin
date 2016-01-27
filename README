@@ -92,4 +92,4 @@ produced. Finally the resulting raster file is sieved (i.e., regions
 consisting of view pixels are merged to the surrounding).
 
 You can find further informations on the usage of the plugin in the 
-enclosed plugin documentation.
+enclosed plugin documentation (./help/index.html).
