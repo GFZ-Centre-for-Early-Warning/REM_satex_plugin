@@ -202,13 +202,13 @@ class SatEx:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/SatEx/icon.png'
+        icon_path = ':/plugins/SatEx/icon_preprocessing.png'
         self.add_action(
             icon_path,
             text=self.tr(u'Preprocessing'),
             callback=self.run_preprocessing,
             parent=self.iface.mainWindow())
-        icon_path = ':/plugins/SatEx/icon.png'
+        icon_path = ':/plugins/SatEx/icon_classification.png'
         self.add_action(
             icon_path,
             text=self.tr(u'Classification'),
