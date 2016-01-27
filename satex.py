@@ -332,7 +332,7 @@ class SatEx:
         source = inspect.currentframe().f_back.f_code.co_filename
         #sys.modules['SatEx'].__file__
         path = os.path.dirname(source)
-        helpfile = os.path.join(path, 'index-en.html')
+        helpfile = os.path.join(path, '/help/build/html/index.html')
         url = "file://" + helpfile
         webbrowser.open(url,new=2)
         #qgis.utils.showPluginHelp(packageName='SatEx')

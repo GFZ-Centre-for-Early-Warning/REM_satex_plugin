@@ -38,17 +38,17 @@ LOCALES =
 # translation
 SOURCES = \
 	__init__.py \
-	preprocessing.py preprocessing_dialog.py
+	satex.py satex_dialog.py utils.py
 
 PLUGINNAME = SatEx
 
 PY_FILES = \
 	__init__.py \
-	preprocessing.py preprocessing_dialog.py
+	satex.py satex_dialog.py utils.py
 
-UI_FILES = preprocessing_dialog_base.ui
+UI_FILES = preprocessing.ui classification.ui
 
-EXTRAS = metadata.txt icon.png
+EXTRAS = metadata.txt icon_preprocessing.png icon_classification.png
 
 COMPILED_RESOURCE_FILES = resources.py
 
