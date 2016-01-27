@@ -1,35 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-/***************************************************************************
- SatEx
-                                 A QGIS plugin
- Pixel based classifiction of Landsat 8 Satellite imagery
-                              -------------------
-        begin                : 2015-12-14
-        git sha              : $Format:%H$
-        copyright            : (C) 2015 by GFZ Michael Haas
-        email                : mhaas@gfz-potsdam.de
- ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *  This program is free software: you can redistribute it and/or modify   *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation, either version 3 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>  *
- *                                                                         *
- ***************************************************************************/
-"""
-
-# Functions in use for the plugin
+# Function in use for the plugin
 import os
 import fnmatch
 import otbApplication
@@ -75,89 +44,63 @@ class utils(object):
         Function to determine if the polygon(s) in a vector overlap with a raster
 	return true if all overlap false otherwise
         '''
-        error = 'Unspecified error in utils.vector_raster_overlap function'
-        #explicitly import from osgeo since QGIS named their gdal processing gdal...
-        try:
-            from osgeo import ogr
-            from osgeo import gdal
-            from osgeo import osr
-        except:
-            error = 'Failed to load ogr,gdal and osr from osgeo'
+        import ogr
+        import gdal
+        import osr
 
-        try:
-            raster = gdal.Open(raster_file)
-        except:
-            error = 'Failed to load raster file {}'.format(raster_file)
+	raster = gdal.Open(raster_file)
+        driver = ogr.GetDriverByName('ESRI Shapefile')
+	vector = driver.Open(vector_file)
+	layer = vector.GetLayer()
 
-        try:
-            driver = ogr.GetDriverByName('ESRI Shapefile')
-            vector = driver.Open(vector_file)
-        except:
-            error = 'Failed to load shapefile {}'.format(vector_file)
+        #determine srs of raster and vector
+        srs1 = osr.SpatialReference(raster.GetProjection())
+        srs2 = layer.GetSpatialRef()
+        #create transform
+        coordTrans = osr.CoordinateTransformation(srs1, srs2)
 
-        try:
-            layer = vector.GetLayer()
+	# Get raster geometry
+	transform = raster.GetGeoTransform()
+	pixelWidth = transform[1]
+        #if width defined negative set positive
+        if pixelWidth < 0: pixelWidth=-pixelWidth
+	pixelHeight = transform[5]
+        #if height defined negative set positive
+        if pixelHeight < 0: pixelHeight=-pixelHeight
+	cols = raster.RasterXSize
+	rows = raster.RasterYSize
 
-        try:
-            #determine srs of raster and vector
-            srs1 = osr.SpatialReference(raster.GetProjection())
-            srs2 = layer.GetSpatialRef()
-            #create transform
-            coordTrans = osr.CoordinateTransformation(srs1, srs2)
-        except:
-            error = 'Failed to determined spatial refernence of {} and {}'.format(raster_file,vector_file)
+	xLeft = transform[0]
+	yTop = transform[3]
+	xRight = xLeft+cols*pixelWidth
+	yBottom = yTop-rows*pixelHeight
 
-        try:
-	    # get raster geometry
-            transform = raster.GetGeoTransform()
-            pixelWidth = transform[1]
-            #if width defined negative set positive
-            if pixelWidth < 0: pixelWidth=-pixelWidth
-            pixelHeight = transform[5]
-            #if height defined negative set positive
-            if pixelHeight < 0: pixelHeight=-pixelHeight
-            cols = raster.RasterXSize
-            rows = raster.RasterYSize
-            xLeft = transform[0]
-            yTop = transform[3]
-            xRight = xLeft+cols*pixelWidth
-            yBottom = yTop-rows*pixelHeight
-            ring = ogr.Geometry(ogr.wkbLinearRing)
-            ring.AddPoint(xLeft, yTop)
-            ring.AddPoint(xRight, yTop)
-            ring.AddPoint(xRight, yBottom)
-            ring.AddPoint(xLeft, yBottom)
-            ring.AddPoint(xLeft, yTop)
-            rasterGeometry = ogr.Geometry(ogr.wkbPolygon)
-            rasterGeometry.AssignSpatialReference(srs1)
-            rasterGeometry.AddGeometry(ring)
-        except:
-            error='Geometry exctraction of raster {} failed'.format(raster_file)
+	ring = ogr.Geometry(ogr.wkbLinearRing)
+	ring.AddPoint(xLeft, yTop)
+	ring.AddPoint(xRight, yTop)
+	ring.AddPoint(xRight, yBottom)
+	ring.AddPoint(xLeft, yBottom)
+	ring.AddPoint(xLeft, yTop)
+	rasterGeometry = ogr.Geometry(ogr.wkbPolygon)
+        rasterGeometry.AssignSpatialReference(srs1)
+	rasterGeometry.AddGeometry(ring)
 
-        try:
-            #reproject
-            rasterGeometry.Transform(coordTrans)
-        except:
-            error='Reprojecting the raster geometry {} to the spatial reference system of {} failed'.format(raster_file,vector_file)
+        #reproject
+        rasterGeometry.Transform(coordTrans)
 
-        try:
-            # Get feature geometry
-            overlap = True
-            while True:
-                try:
-                    feature = layer.GetNextFeature()
-                    #make sure a feature was returned and not None
-                    feature.GetFID()
-                    #check intersect
-                    overlap=rasterGeometry.Intersect(feature.GetGeometryRef())
-                except:
-                    break
-        except:
-            error = 'Determining if {} and  {} intersect failed'.format(raster_file,vector_file)
-        else:
-            error = 'SUCCESS'
+	# Get feature geometry
+        overlap = True
+        while True:
+            try:
+                feature = layer.GetNextFeature()
+                #make sure a feature was returned and not None
+                feature.GetFID()
+                #check intersect
+                overlap=rasterGeometry.Intersect(feature.GetGeometryRef())
+            except:
+                break
 
-        return error,overlap
+        return overlap
 
     def otb_concatenate(self,in_files,out_file):
         '''
