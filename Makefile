@@ -1,8 +1,8 @@
 #/***************************************************************************
 # SatEx
 #                                 A QGIS plugin
-#Streamlined algorithms for pixel based classification of satellite imagery
-#using OTB.
+#Streamlined algorithms for pixel based classification of Landsat satellite 
+#imagery using OTB.
 #                              -------------------
 #        begin                : 2015-12-14
 #        git sha              : $Format:%H$
