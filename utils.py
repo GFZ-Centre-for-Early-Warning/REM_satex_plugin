@@ -3,32 +3,32 @@
 /***************************************************************************
  SatEx
                                  A QGIS plugin
-Streamlined algorithms for pixel based classification of satellite imagery
-using OTB.
+ Pixel based classifiction of Landsat 8 Satellite imagery
                               -------------------
         begin                : 2015-12-14
         git sha              : $Format:%H$
-        copyright            : (C) 2016 by Michael Haas (GFZ)
+        copyright            : (C) 2015 by GFZ Michael Haas
         email                : mhaas@gfz-potsdam.de
  ***************************************************************************/
 
-/****************************************************************************
- *                                                                          *
- *    This program is free software: you can redistribute it and/or modify  *
- *    it under the terms of the GNU General Public License as published by  *
- *    the Free Software Foundation, either version 3 of the License, or     *
- *    (at your option) any later version.                                   *
- *                                                                          *
- *    This program is distributed in the hope that it will be useful,       *
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *    GNU General Public License for more details.                          *
- *                                                                          *
- *    You should have received a copy of the GNU General Public License     *
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>. *
- *                                                                          *
- ****************************************************************************/
+/***************************************************************************
+ *                                                                         *
+ *  This program is free software: you can redistribute it and/or modify   *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation, either version 3 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>  *
+ *                                                                         *
+ ***************************************************************************/
 """
+
 # Functions in use for the plugin
 import os
 import fnmatch
@@ -43,18 +43,15 @@ class utils(object):
     # General functions
     ###################################################
 
-    def findFiles(self,path,filter,search_dirs=False):
+    def findFiles(self,path,pattern):
         '''
-        Function to find files and directories (search_dirs=True) within directory 'path'
+        Function to find files with pattern within directory 'path'
         return list of files
         '''
-        for root,dirs,files in os.walk(path,filter):
-            if search_dirs:
-                for directory in fnmatch.filter(dirs,filter):
-                    yield directory
-            else:
-                for file in fnmatch.filter(files,filter):
-                    yield file
+        files=[]
+        for root,dirs,files in os.walk(path):
+            for f in fnmatch.filter(files,pattern):
+                yield f
 
     def delete_tmps(self,path):
         '''
@@ -75,63 +72,87 @@ class utils(object):
         Function to determine if the polygon(s) in a vector overlap with a raster
 	return true if all overlap false otherwise
         '''
-        import ogr
-        import gdal
-        import osr
+        error = 'Unspecified error in utils.vector_raster_overlap function'
+        #explicitly import from osgeo since QGIS named their gdal processing gdal...
+        try:
+            from osgeo import ogr
+            from osgeo import gdal
+            from osgeo import osr
+        except:
+            error = 'Failed to load ogr,gdal and osr from osgeo'
 
-	raster = gdal.Open(raster_file)
-        driver = ogr.GetDriverByName('ESRI Shapefile')
-	vector = driver.Open(vector_file)
-	layer = vector.GetLayer()
+        try:
+            raster = gdal.Open(raster_file)
+        except:
+            error = 'Failed to load raster file {}'.format(raster_file)
 
-        #determine srs of raster and vector
-        srs1 = osr.SpatialReference(raster.GetProjection())
-        srs2 = layer.GetSpatialRef()
-        #create transform
-        coordTrans = osr.CoordinateTransformation(srs1, srs2)
+        try:
+            driver = ogr.GetDriverByName('ESRI Shapefile')
+            vector = driver.Open(vector_file)
+            layer = vector.GetLayer()
+        except:
+            error = 'Failed to load shapefile {}'.format(vector_file)
 
-	# Get raster geometry
-	transform = raster.GetGeoTransform()
-	pixelWidth = transform[1]
-        #if width defined negative set positive
-        if pixelWidth < 0: pixelWidth=-pixelWidth
-	pixelHeight = transform[5]
-        #if height defined negative set positive
-        if pixelHeight < 0: pixelHeight=-pixelHeight
-	cols = raster.RasterXSize
-	rows = raster.RasterYSize
+        try:
+            #determine srs of raster and vector
+            srs1 = osr.SpatialReference(raster.GetProjection())
+            srs2 = layer.GetSpatialRef()
+            #create transform
+            coordTrans = osr.CoordinateTransformation(srs1, srs2)
+        except:
+            error = 'Failed to determined spatial refernence of {} and {}'.format(raster_file,vector_file)
 
-	xLeft = transform[0]
-	yTop = transform[3]
-	xRight = xLeft+cols*pixelWidth
-	yBottom = yTop-rows*pixelHeight
+        try:
+	    # get raster geometry
+            transform = raster.GetGeoTransform()
+            pixelWidth = transform[1]
+            #if width defined negative set positive
+            if pixelWidth < 0: pixelWidth=-pixelWidth
+            pixelHeight = transform[5]
+            #if height defined negative set positive
+            if pixelHeight < 0: pixelHeight=-pixelHeight
+            cols = raster.RasterXSize
+            rows = raster.RasterYSize
+            xLeft = transform[0]
+            yTop = transform[3]
+            xRight = xLeft+cols*pixelWidth
+            yBottom = yTop-rows*pixelHeight
+            ring = ogr.Geometry(ogr.wkbLinearRing)
+            ring.AddPoint(xLeft, yTop)
+            ring.AddPoint(xRight, yTop)
+            ring.AddPoint(xRight, yBottom)
+            ring.AddPoint(xLeft, yBottom)
+            ring.AddPoint(xLeft, yTop)
+            rasterGeometry = ogr.Geometry(ogr.wkbPolygon)
+            rasterGeometry.AssignSpatialReference(srs1)
+            rasterGeometry.AddGeometry(ring)
+        except:
+            error='Geometry exctraction of raster {} failed'.format(raster_file)
 
-	ring = ogr.Geometry(ogr.wkbLinearRing)
-	ring.AddPoint(xLeft, yTop)
-	ring.AddPoint(xRight, yTop)
-	ring.AddPoint(xRight, yBottom)
-	ring.AddPoint(xLeft, yBottom)
-	ring.AddPoint(xLeft, yTop)
-	rasterGeometry = ogr.Geometry(ogr.wkbPolygon)
-        rasterGeometry.AssignSpatialReference(srs1)
-	rasterGeometry.AddGeometry(ring)
+        try:
+            #reproject
+            rasterGeometry.Transform(coordTrans)
+        except:
+            error='Reprojecting the raster geometry {} to the spatial reference system of {} failed'.format(raster_file,vector_file)
 
-        #reproject
-        rasterGeometry.Transform(coordTrans)
+        try:
+            # Get feature geometry
+            overlap = True
+            while True:
+                try:
+                    feature = layer.GetNextFeature()
+                    #make sure a feature was returned and not None
+                    feature.GetFID()
+                    #check intersect
+                    overlap=rasterGeometry.Intersect(feature.GetGeometryRef())
+                except:
+                    break
+        except:
+            error = 'Determining if {} and  {} intersect failed'.format(raster_file,vector_file)
+        else:
+            error = 'SUCCESS'
 
-	# Get feature geometry
-        overlap = True
-        while True:
-            try:
-                feature = layer.GetNextFeature()
-                #make sure a feature was returned and not None
-                feature.GetFID()
-                #check intersect
-                overlap=rasterGeometry.Intersect(feature.GetGeometryRef())
-            except:
-                break
-
-        return overlap
+        return error,overlap
 
     def otb_concatenate(self,in_files,out_file):
         '''
@@ -147,6 +168,63 @@ class utils(object):
         ConcatenateImages.SetParameterOutputImagePixelType("out", 2)
         # The following line execute the application
         ConcatenateImages.ExecuteAndWriteOutput()
+
+    def otb_resample(self,in_file,out_file):
+        '''
+        Wrapper for OTB RigidTransformResample doubles x,y resolution
+        input: - input file name
+               - output file name
+        '''
+        # The following line creates an instance of the RigidTransformResample application
+        RigidTransformResample = otbApplication.Registry.CreateApplication("RigidTransformResample")
+
+        # The following lines set all the application parameters:
+        RigidTransformResample.SetParameterString("in", in_file)
+        RigidTransformResample.SetParameterString("out", out_file)
+        RigidTransformResample.SetParameterString("transform.type","id")
+        RigidTransformResample.SetParameterFloat("transform.type.id.scalex", 2.)
+        RigidTransformResample.SetParameterFloat("transform.type.id.scaley", 2.)
+        RigidTransformResample.SetParameterOutputImagePixelType("out", 2)
+
+        # The following line execute the application
+        RigidTransformResample.ExecuteAndWriteOutput()
+
+    def otb_superimpose(self,in_file_ref,in_file_inm,out_file):
+        '''
+        Wrapper for OTB Superimpose using bicubic interpolation
+        input: - in_file_ref input file as reference
+               - in_file_inm input file to superimpose
+               - output file name
+        '''
+	# The following line creates an instance of the Superimpose application
+        Superimpose = otbApplication.Registry.CreateApplication("Superimpose")
+        # The following lines set all the application parameters:
+        Superimpose.SetParameterString("inr", in_file_ref)
+        Superimpose.SetParameterString("inm", in_file_inm)
+        Superimpose.SetParameterString("out", out_file)
+        Superimpose.SetParameterString("interpolator","bco")
+        Superimpose.SetParameterString("interpolator.bco.radius","2")
+        Superimpose.SetParameterOutputImagePixelType("out", 2)
+        # The following line execute the application
+        Superimpose.ExecuteAndWriteOutput()
+
+    def otb_pansharpen(self,in_file_pan,in_file_mul,out_file):
+        '''
+        Wrapper for OTB Pansharpen
+        input: - input panchromatic file
+               - input multiband file
+               - output file name
+        '''
+        # The following line creates an instance of the Pansharpening application
+        Pansharpening = otbApplication.Registry.CreateApplication("Pansharpening")
+
+        # The following lines set all the application parameters:
+        Pansharpening.SetParameterString("inp", in_file_pan)
+        Pansharpening.SetParameterString("inxs", in_file_mul)
+        Pansharpening.SetParameterString("out", out_file)
+        Pansharpening.SetParameterOutputImagePixelType("out", 2)
+        # The following line execute the application
+        Pansharpening.ExecuteAndWriteOutput()
 
     def otb_split(self,in_file_mul,out_file):
         '''

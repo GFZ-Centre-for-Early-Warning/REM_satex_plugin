@@ -3,33 +3,31 @@
 /***************************************************************************
  SatEx
                                  A QGIS plugin
-Streamlined algorithms for pixel based classification of satellite imagery
-using OTB.
+ Pixel based classifiction of Landsat 8 Satellite imagery
                               -------------------
         begin                : 2015-12-14
         git sha              : $Format:%H$
-        copyright            : (C) 2016 by Michael Haas (GFZ)
+        copyright            : (C) 2015 by GFZ Michael Haas
         email                : mhaas@gfz-potsdam.de
  ***************************************************************************/
 
-/****************************************************************************
- *                                                                          *
- *    This program is free software: you can redistribute it and/or modify  *
- *    it under the terms of the GNU General Public License as published by  *
- *    the Free Software Foundation, either version 3 of the License, or     *
- *    (at your option) any later version.                                   *
- *                                                                          *
- *    This program is distributed in the hope that it will be useful,       *
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *    GNU General Public License for more details.                          *
- *                                                                          *
- *    You should have received a copy of the GNU General Public License     *
- *    along with this program.  If not, see <http://www.gnu.org/licenses/>. *
- *                                                                          *
- ****************************************************************************/
+/***************************************************************************
+ *                                                                         *
+ *  This program is free software: you can redistribute it and/or modify   *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation, either version 3 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ *   This program is distributed in the hope that it will be useful,       *
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *   GNU General Public License for more details.                          *
+ *                                                                         *
+ *   You should have received a copy of the GNU General Public License     *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>  *
+ *                                                                         *
+ ***************************************************************************/
 """
-
 import PyQt4.QtCore
 import PyQt4.QtGui
 # Initialize Qt resources from file resources.py
@@ -111,6 +109,18 @@ class SatEx:
 
         #Prefent bug in directory search (added / on linux results in searching the root directory)
         self.Pdlg.lineEdit.setText(' ')
+        #TODO:defaults for development
+        #self.Pdlg.lineEdit.setText('C:\Users\michael\Desktop\plugin data\LC81680542015357LGN00')
+        #self.Pdlg.lineEdit_2.setText('C:/Users/michael/Desktop/plugin data/adisababa.shp')
+        #self.Pdlg.lineEdit_3.setText('C:/Users/michael/Desktop/test.vrt')
+        #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
+        #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
+        #self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
+        #TODO:defaults for development
+        #self.Cdlg.lineEdit.setText('Path to vrt')
+        #self.Cdlg.lineEdit_2.setText('Path to training shapefile')
+        #self.Cdlg.lineEdit_3.setText('Path to output-tif')
+        #self.Cdlg.lineEdit_5.setText('Training class label')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -287,7 +297,8 @@ class SatEx:
 
     def select_Coutput_name(self):
         filename = PyQt4.QtGui.QFileDialog.getSaveFileName(self.Cdlg, "Select output file ","","GeoTIFF (*.tif)")
-        if filename.split('.')[-1]!='tif':
+        suffix=filename.split('.')[-1]
+        if suffix not in ['tif','TIF']:
             filename = filename+'.tif'
         self.Cdlg.lineEdit_3.setText(filename)
 
@@ -314,11 +325,12 @@ class SatEx:
 
     def show_help(self):
         import webbrowser
-        import os
         import sys
+        import os
 
-        path_name = os.path.dirname(sys.modules['SatEx'].__file__)
-        helpfile = path_name + '/help/index.html'
+        source = sys.modules['SatEx'].__file__
+        path = os.path.dirname(source)
+        helpfile = path+'/help/index.html'
         url = "file://" + helpfile
         webbrowser.open(url,new=2)
 
@@ -333,6 +345,10 @@ class SatEx:
         #Dialog event loop
         result = self.Pdlg.exec_()
         if result:
+            self.processed = 0
+            self.percentage = 0
+            #TODO:fix
+            self.ntasks = 3
             #Get user edits and check if not empty
             valid_input=self.updatePForm()
             #self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
@@ -365,13 +381,22 @@ class SatEx:
                     #delete any old tmp files that might be in the directory from a killed task
                     old=ut.delete_tmps(self.ls_path)
                     if old > 0: qgis.core.QgsMessageLog.logMessage('Old *satexTMP* files were present. They were deleted.')
-                    scenes = set(['_'.join(s.split('_')[:1]) for s in ut.findFiles(self.ls_path,'*.TIF')])
-                    #adjust number of tasks
-                    self.ntasks = self.ntasks*len(scenes)
-                    qgis.core.QgsMessageLog.logMessage(str('Found {} Landsat 8 scene(s) in {}'.format(len(scenes),self.ls_path)))
-                except Exception as e:
-                    e = str('Found no Landsat 8 scene in {}'.format(self.ls_path))
+                except:
+                    e = str('Could not delete old *satexTMP* files.')
                     raise Exception
+
+                try:
+                    pattern = '*.TIF'
+                    scenes = set(['_'.join(s.split('_')[:1]) for s in ut.findFiles(self.ls_path,pattern)])
+                    if len(scenes)==0:
+                        pattern = '*.tif'
+                        scenes = set(['_'.join(s.split('_')[:1]) for s in ut.findFiles(self.ls_path,pattern)])
+                    1/len(scenes)
+                except Exception as e:
+                    e = str('Found no scene in {}'.format(self.ls_path))
+                    raise Exception
+                else:
+                    qgis.core.QgsMessageLog.logMessage(str('Found {} scene(s) in {}'.format(len(scenes),self.ls_path)))
 
                 #check shapefile roi
                 try:
@@ -384,35 +409,55 @@ class SatEx:
                     raise Exception
 
                 #loop through all scenes
+                out_files = []
                 for scene in scenes:
+
                     #find all bands for scene exclude quality band BQA and B8
                     try:
-                        bands = [b for b in ut.findFiles(self.ls_path,scene+'*_B*.TIF') if '_BQA' not in b]
+                        bands = [b for b in ut.findFiles(self.ls_path,scene+'*_B'+pattern) if '_BQA' not in b]
                         bands = [b for b in bands if '_B8' not in b]
-                        #check if there are 10 bands
-                        #if len(bands)!=11:
-                        if len(bands)!=10:
-                            e = str('Found {} instead of 10 bands (excluding B8 and BQA) for scene {}'.format(len(bands),scene))
-                            raise Exception
+                        #in case of multiple scenes (and not first scene is processed) check if nr of bands are equal
+                        try:
+                            #only if more than one scene and at least second scene
+                            nr_bands
+                        except:
+                            if len(bands)==0:
+                                e = str('Found no bands for scene {}.'.format(scene))
+                                raise Exception
+                            else:
+                                #store number of bands for potential additonal scenes
+                                nr_bands = len(bands)
+                                qgis.core.QgsMessageLog.logMessage(str('Found {} bands (if present, excluding B8 and BQA) for scene {} '.format(nr_bands,scene)))
                         else:
-                            qgis.core.QgsMessageLog.logMessage(str('Found all 10 bands (excluding B8 and BQA) for scene {} '.format(scene)))
-                    except Exception as e:
-                        e = str('Could not find all 10 bands (excluding B8 and BQA) for scene {}'.format(scene))
+                            if len(bands)!=nr_bands:
+                                e = str('Found {} instead of {} bands (excluding B8 and BQA) for scene {}. If multiple scenes are provided in the input directory, ensure they have equal bands!'.format(len(bands),nr_bands,scene))
+                            else:
+                                qgis.core.QgsMessageLog.logMessage(str('Found {} bands (if present, excluding B8 and BQA) for scene {} '.format(len(bands),scene)))
+                    except:
                         raise Exception
 
                     #Check if ROI and scene overlap
                     try:
-                        1/ut.vector_raster_overlap(self.roi,self.ls_path+scene+'_B1.TIF')
+                        error,overlap = ut.vector_raster_overlap(self.roi,bands[0])
                     except:
-                        e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
+                        e = str('Unspecified error while trying to execute utils.vector_raster_overlap function with {} and {}'.format(self.roi,bands[0]))
                         raise Exception
+                    if error!='SUCCESS':
+                        e = error
+                        raise Exception
+                    else:
+                        try:
+                            1/overlap
+                        except:
+                            e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
+                            raise Exception
 
                     #use gdalwarp to cut bands to roi
                     try:
                         #go through bands
                         for band in bands:
                             qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
-                            cmd = ['gdalwarp','-overwrite','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI.TIF']
+                            cmd = ['gdalwarp','-overwrite','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI'+pattern[1:]]
                             subprocess.check_call(cmd,startupinfo=self.startupinfo)
                     except Exception as e:
                         e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
@@ -421,31 +466,28 @@ class SatEx:
                     # Layerstack
                     try:
                         #respect order B1,B2,B3,B4,B5,B6,B7,B9,B10,B11
-                        in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI.TIF') for b in bands]
+                        in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI'+pattern[1:]) for b in bands]
                         in_files.sort()
-                        #if landsat 8
                         #B10,B11 considered smaller --> resort
-                        if nr_bands == 10:
-                            in_files = in_files[2:] + in_files[0:2]
-                        out_file = str(self.ls_path+scene+'_satex_mul.TIF')
+                        in_files = in_files[2:] + in_files[0:2]
+                        out_file = str(os.path.dirname(self.out_fname)+'/'+scene+'_satex_mul'+pattern[1:])
                         #call otb wrapper
-                        #self.status.emit('Concatenating bands for pansharpening scene {}'.format(scene))
-                        qgis.core.QgsMessageLog.logMessage(str('Concatenate bands for pansharpening scene {}'.format(scene)))
                         ut.otb_concatenate(in_files,out_file)
-                        #self.calculate_progress()
+                        #append file to list
+                        out_files.append(out_file)
+                        qgis.core.QgsMessageLog.logMessage(str('Concatenated bands for pansharpening scene {}'.format(scene)))
                     except Exception as e:
                         e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
                         raise Exception
 
                 # after all scenes were processed combine them to a virtual raster tile
                 try:
+                    print out_files
                     cmd = ["gdalbuildvrt","-q","-srcnodata","0","-overwrite",self.out_fname]
-                    files = [f for f in ut.findFiles(self.ls_path,'*satex_mul.TIF')]
-                    for f in files:
-                        cmd.append(str(self.ls_path+f))
+                    for f in out_files:
+                        cmd.append(f)
                     subprocess.check_call(cmd,startupinfo=self.startupinfo)
-                    qgis.core.QgsMessageLog.logMessage(str('Merged {} different L8 scenes to {}'.format(len(files),self.out_fname)))
-                    #self.calculate_progress()
+                    qgis.core.QgsMessageLog.logMessage(str('Merged {} different scenes to {}'.format(len(out_files),self.out_fname)))
                 except:
                     e = str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd)))
                     raise Exception
@@ -478,7 +520,12 @@ class SatEx:
             import traceback
             import qgis.core
             import ogr
+            #import subprocess
 
+            self.processed = 0
+            self.percentage = 0
+            #TODO:fix
+            self.ntasks = 3
             #Get user edits
             valid_input=self.updateCForm()
             #TODO:fix
@@ -506,16 +553,26 @@ class SatEx:
                 #check if training fields overlap with raster
                 if not self.external:
                     try:
-                        1/ut.vector_raster_overlap(self.in_train,self.raster)
+                        error,overlap = ut.vector_raster_overlap(self.in_train,self.raster)
                     except:
-                        e = str('At least one feature in {} does not overlap with {}'.format(self.in_train,self.raster))
+                        e = str('Unspecified error while trying to execute utils.vector_raster_overlap function')
                         raise Exception
+                    if error!='SUCCESS':
+                        e = error
+                        raise Exception
+                    else:
+                        try:
+                            1/overlap
+                        except:
+                            e = str('At least one feature in {} does not overlap with {}'.format(self.in_train,self.raster))
+                            raise Exception
 
                 #generate image statistics
                 try:
                     self.stats = str(self.raster[:-4]+'_stats.xml')
                     ut.otb_image_statistics(str(self.raster),str(self.stats))
                     qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(self.stats,self.raster)))
+                    #self.calculate_progress()
                 except:
                     e = str('Could not execute OTB Image Statistics on: {}'.format(self.raster))
                     raise Exception
@@ -558,7 +615,7 @@ class SatEx:
                     #testing is optional in case of externally provided SVM
                     if self.in_train!='':
                         ut.otb_confusion_matrix(self.out_fname,self.ConfMatrix,self.test,self.label)
-                        qgis.core.QgsMessageLog.logMessage(str('Confusion matrix calcualted on classified image {} with test set {} saved as {}'.format(self.out_fname,self.test,self.ConfMatrix)))
+                        qgis.core.QgsMessageLog.logMessage(str('Confusion matrix calculated on classified image {} with test set {} saved as {}'.format(self.out_fname,self.test,self.ConfMatrix)))
                 except Exception as e:
                     e = 'Could not execute OTB Confusion Matrix with {}, {}, {}, {}'.format(self.out_fname, self.ConfMatrix, self.test, self.label)
                     raise Exception
@@ -582,6 +639,10 @@ class SatEx:
             except:
                 self.errorMsg(e)
                 qgis.core.QgsMessageLog.logMessage(e)
+                qgis.core.QgsMessageLog.logMessage(str('Exception: Deleting temporary files'))
+                #ut.delete_tmps(self.ls_path)
             else:
                 qgis.core.QgsMessageLog.logMessage(str('Processing completed'))
+                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
                 self.iface.messageBar().pushMessage('Processing successfully completed, see log for details',self.iface.messageBar().SUCCESS,duration=3)
+                #ut.delete_tmps(self.ls_path)

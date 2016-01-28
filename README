@@ -51,6 +51,15 @@ Python Console and typing (without the >):
 This should return you a list of otb functions if it's working.
 
 ######################
+Testing data
+######################
+
+In the test/test_data you will find a directory 'satellite_scenes' 
+containing a subset of 2 satellite scences, an example region of interest
+roi.shp and an example training/testing vector 'train.shp'.
+These can be used for testing the funtionality of the plugin.
+
+######################
 Purpose of the Plugin
 ######################
 
