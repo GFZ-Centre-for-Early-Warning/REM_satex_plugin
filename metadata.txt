@@ -8,16 +8,16 @@
 
 [general]
 name=GFZ SatEx
-qgisMinimumVersion=2.0
-description=Landsat 8 pixel-based otb classification towards sampling for exposure estimation
+qgisMinimumVersion=2.6
+description=Streamlined algorithms for pixel based classification of Landsat satellite imagery using OTB.
 version=0.1
-author=GFZ Michael Haas
+author=Michael Haas (GFZ)
 email=mhaas@gfz-potsdam.de
 
-about=Landsat 8 pixel-based otb classification towards sampling for exposure estimation
+about=This is a QGIS plugin which streamlines a pixel-based classifiaction of Landsat imagery using the OrfeoToolbox (OTB). Only required inputs are: (1) a directory containing the band raster files of one or more Landsat satellite image, (2) a region of interest as a polygon in a shapefile, and (3) a vector containing a polygon feature set with training/testing information. Optionally a trained SVM model for the libsvm implementation of OTB, as also created by the plugin can be provided instead of (3). Note: The plugin requires QGIS (&gt;=2.8) and an installation of the Orfeo Toolbox (OTB, can be installed via OSGeo4W).
 
-tracker=q
-repository=w
+tracker=https://github.com/m-haas/SatEx/issues
+repository=https://github.com/m-haas/SatEx
 # End of mandatory metadata
 
 # Recommended items:
@@ -26,11 +26,11 @@ repository=w
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=r
+tags=classification,landsat,otb,pixel,satellite
 
-homepage=e
+homepage=https://github.com/m-haas/SatEx
 category=Plugins
-icon=icon.png
+icon=icon_preprocessing.png
 # experimental flag
 experimental=False
 

@@ -1,38 +1,25 @@
-	
-	SatEx - QGIS Plugin
-    Copyright (C) 2016  Michael Haas
+This is a QGIS plugin which streamlines a pixel-based classifiaction of Landsat imagery
+using the OrfeoToolbox (OTB). 
+Only required inputs are:
+(1) a directory containing the band raster files of one or more Landsat satellite image,
+(2) a region of interest as a polygon in a shapefile, and
+(3) a vector containing a polygon feature set with training/testing information
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+Optionally a trained SVM model for the libsvm implementation of OTB, as also created by the plugin
+can be provided instead of (3).
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-
-
-GFZ German Research Centre for Geosciences - Centre for Early Warning Systems 
-Author: Michael Haas
-Date: January 12, 2016
 The plugin requires QGIS (&gt;=2.8) and an installation of the
 Orfeo Toolbox (OTB)
 
-######################
 Installation
-######################
+------------
 The plugin can be installed via the QGIS Plugin Manager
-or by putting this repository in .qgis2/python/plugins/
-and running make deploy from within the repository.
+or by cloning this repository and running 
+> make deploy 
+in a shell from within the repository.
 
-######################
 Software Requirements
-######################
+---------------------
 The plugin requires an installation of the Orfeo Toolbox (OTB;
 details: www.orfeo-toolbox.org). On Windows you can install it
 via OSGeo4W on Linux you can install it from packages provided
@@ -50,18 +37,8 @@ Python Console and typing (without the >):
 
 This should return you a list of otb functions if it's working.
 
-######################
-Testing data
-######################
-
-In the test/test_data you will find a directory 'satellite_scenes' 
-containing a subset of 2 satellite scences, an example region of interest
-roi.shp and an example training/testing vector 'train.shp'.
-These can be used for testing the funtionality of the plugin.
-
-######################
 Purpose of the Plugin
-######################
+---------------------
 
 Plugin that provides two algorithms for the processing of one or
 multiple Landsat 8 scenes within a region of interest towards a
@@ -69,9 +46,8 @@ Landuse/Landcoverage classification streamlining all required
 processing steps to perform a libsvm/orfeo toolbox (OTB) pixel based
 classification.
 
-########################
 Structure of the Plugin
-########################
+-----------------------
 The Plugin is structured in two modules:
 1. Preprocessing, and
 2. Classification 
@@ -102,4 +78,40 @@ produced. Finally the resulting raster file is sieved (i.e., regions
 consisting of view pixels are merged to the surrounding).
 
 You can find further informations on the usage of the plugin in the 
-enclosed plugin documentation (./help/index.html).
+enclosed plugin documentation by pressing the help button in one of the
+dialogs or opening ($HOME/.qgis2/python/plugins/SatEx/help/index.html).
+
+Testing data
+------------
+
+In the test/test_data you will find a directory 'satellite_scenes' 
+containing a subset of 2 satellite scences, an example region of interest
+roi.shp and an example training/testing vector 'train.shp'.
+These can be used for testing the funtionality of the plugin.
+
+Contact
+-------
+
+Michael Haas - mhaas(at)gfz-potsdam.de
+GFZ German Research Centre for Geosciences - Centre for Early Warning Systems 
+
+License
+-------
+
+SatEx - QGIS Plugin
+Copyright (C) 2016  Michael Haas
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
