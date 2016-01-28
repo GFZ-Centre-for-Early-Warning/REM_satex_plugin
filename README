@@ -37,6 +37,9 @@ Python Console and typing (without the >):
 
 This should return you a list of otb functions if it's working.
 
+In order to build the documentation the python library sphinx
+is required.
+
 Purpose of the Plugin
 ---------------------
 
@@ -79,7 +82,7 @@ consisting of view pixels are merged to the surrounding).
 
 You can find further informations on the usage of the plugin in the 
 enclosed plugin documentation by pressing the help button in one of the
-dialogs or opening ($HOME/.qgis2/python/plugins/SatEx/help/index.html).
+dialogs or opening ($HOME/.qgis2/python/plugins/SatEx/help/build/html/index.html).
 
 Testing data
 ------------
