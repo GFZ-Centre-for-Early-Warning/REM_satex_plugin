@@ -44,7 +44,7 @@ Purpose of the Plugin
 ---------------------
 
 Plugin that provides two algorithms for the processing of one or
-multiple Landsat 8 scenes within a region of interest towards a
+multiple Landsat scenes within a region of interest towards a
 Landuse/Landcoverage classification streamlining all required
 processing steps to perform a libsvm/orfeo toolbox (OTB) pixel based
 classification.
