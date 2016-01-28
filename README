@@ -76,15 +76,16 @@ The Plugin is structured in two modules:
 1. Preprocessing, and
 2. Classification 
 
-In the "Preprocessing" algorithm Landsat 8 scenes located in
+In the "Preprocessing" algorithm Landsat scenes located in
 a directory as , e.g., the directory created by extracting from the
 downloaded zip archive of a Landsat 8 scene as can be found on
 EarthExplorer http://earthexplorer.usgs.gov/ is 
 1) cropped to a region of interest provided as , e.g., a polygon feature in a vector
 file and then 
-2) the separate spectral Bands 1-7,9-11 are stacked and
+2) the separate spectral Bands are stacked and
 3) a virtual raster tile is created out of these, i.e., in case the
-region of interest stretches over more than one Landsat 8 scene. The
+region of interest stretches over more than one Landsat scene. If present,
+the panchromatic band 8 (Landsat 7 and 8) is excluded from the layers. The
 "Classification" algorithm is performing a classification of a
 raster file as, e.g., resulting from the "Preprocessing" algorithm
 and either by using a provided trained Support Vector Model (SVM)
