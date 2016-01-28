@@ -331,7 +331,7 @@ class SatEx:
 
         source = sys.modules['SatEx'].__file__
         path = os.path.dirname(source)
-        helpfile = path+'/help/index.html'
+        helpfile = path+'/help/buil/html/index.html'
         url = "file://" + helpfile
         webbrowser.open(url,new=2)
 
