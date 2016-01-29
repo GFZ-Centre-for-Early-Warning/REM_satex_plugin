@@ -371,12 +371,15 @@ class SatEx:
             #instantiate utilities function
             ut = utils.utils()
             try:
+                test_print=0
                 try:
                     #check if input is not empty string
                     1/valid_input
                 except Exception as e:
                     e = str('Please fill all required input fields')
                     raise Exception
+                test_print+=1
+                print test_print
 
                 try:
                     #delete any old tmp files that might be in the directory from a killed task
@@ -385,6 +388,8 @@ class SatEx:
                 except:
                     e = str('Could not delete old *satexTMP* files.')
                     raise Exception
+                test_print+=1
+                print test_print
 
                 try:
                     pattern = '*.TIF'
@@ -399,6 +404,9 @@ class SatEx:
                 else:
                     qgis.core.QgsMessageLog.logMessage(str('Found {} scene(s) in {}'.format(len(scenes),self.ls_path)))
 
+                test_print+=1
+                print test_print
+
                 #check shapefile roi
                 try:
                     driver = ogr.GetDriverByName('ESRI Shapefile')
@@ -408,6 +416,8 @@ class SatEx:
                 except Exception as e:
                     e = str('Could not open {}'.format(self.roi))
                     raise Exception
+                test_print+=1
+                print test_print
 
                 #loop through all scenes
                 out_files = []
@@ -436,10 +446,12 @@ class SatEx:
                                 qgis.core.QgsMessageLog.logMessage(str('Found {} bands (if present, excluding B8 and BQA) for scene {} '.format(len(bands),scene)))
                     except:
                         raise Exception
+                    test_print+=1
+                    print test_print
 
                     #Check if ROI and scene overlap
                     try:
-                        error,overlap = ut.vector_raster_overlap(self.roi,bands[0])
+                        error,overlap = ut.vector_raster_overlap(self.roi,self.ls_path+bands[0])
                     except:
                         e = str('Unspecified error while trying to execute utils.vector_raster_overlap function with {} and {}'.format(self.roi,bands[0]))
                         raise Exception
@@ -453,6 +465,9 @@ class SatEx:
                             e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
                             raise Exception
 
+                    test_print+=1
+                    print test_print
+
                     #use gdalwarp to cut bands to roi
                     try:
                         #go through bands
@@ -463,6 +478,9 @@ class SatEx:
                     except Exception as e:
                         e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
                         raise Exception
+
+                    test_print+=1
+                    print test_print
 
                     # Layerstack
                     try:
@@ -476,14 +494,16 @@ class SatEx:
                         ut.otb_concatenate(in_files,out_file)
                         #append file to list
                         out_files.append(out_file)
-                        qgis.core.QgsMessageLog.logMessage(str('Concatenated bands for pansharpening scene {}'.format(scene)))
+                        qgis.core.QgsMessageLog.logMessage(str('Concatenated bands for scene {}'.format(scene)))
                     except Exception as e:
                         e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
                         raise Exception
 
+                    test_print+=1
+                    print test_print
+
                 # after all scenes were processed combine them to a virtual raster tile
                 try:
-                    print out_files
                     cmd = ["gdalbuildvrt","-q","-srcnodata","0","-overwrite",self.out_fname]
                     for f in out_files:
                         cmd.append(f)
@@ -492,10 +512,16 @@ class SatEx:
                 except:
                     e = str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd)))
                     raise Exception
+                test_print+=1
+                print test_print
+
 
                 #add to map canvas if checked
                 if self.Pdlg.checkBox.isChecked():
                     self.iface.addRasterLayer(str(self.out_fname), "SatEx_vrt")
+
+                test_print+=1
+                print test_print
 
             except:
                 self.errorMsg(e)
@@ -543,6 +569,7 @@ class SatEx:
             try:
                 #instantiate utilities functions
                 ut = utils.utils()
+                test_print = 0
 
                 try:
                     #check if input is not empty string
@@ -550,6 +577,9 @@ class SatEx:
                 except Exception as e:
                     e = str('Please fill all required input fields')
                     raise Exception
+
+                test_print+=1
+                print test_print
 
                 #check if training fields overlap with raster
                 if not self.external:
@@ -567,6 +597,9 @@ class SatEx:
                         except:
                             e = str('At least one feature in {} does not overlap with {}'.format(self.in_train,self.raster))
                             raise Exception
+
+                test_print+=1
+                print test_print
 
                 #generate image statistics
                 try:
@@ -603,6 +636,9 @@ class SatEx:
                         e = 'Could not execute OTB TrainClassifiers with {} {} {} {} {} {} {}'.format(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix)
                         raise Exception
 
+                test_print+=1
+                print test_print
+
                 #classify image
                 try:
                     ut.otb_classification(self.raster, self.stats, self.svmModel, self.out_fname)
@@ -610,6 +646,9 @@ class SatEx:
                 except Exception as e:
                     e = 'Could not execute OTB Classifier with {}, {}, {}, {}'.format(self.raster, self.stats, self.svmModel, self.out_fname)
                     raise Exception
+
+                test_print+=1
+                print test_print
 
                 #confusion matrix
                 try:
@@ -620,6 +659,9 @@ class SatEx:
                 except Exception as e:
                     e = 'Could not execute OTB Confusion Matrix with {}, {}, {}, {}'.format(self.out_fname, self.ConfMatrix, self.test, self.label)
                     raise Exception
+
+                test_print+=1
+                print test_print
 
                 #if sieving is asked perform sieving
                 if self.Cdlg.checkBox_3.isChecked():
@@ -633,9 +675,15 @@ class SatEx:
                         e = 'Could not execute {}'.format(cmd)
                         raise Exception
 
+                test_print+=1
+                print test_print
+
                 #add to map canvas if checked
                 if self.Cdlg.checkBox_2.isChecked():
                     self.iface.addRasterLayer(str(self.out_fname), "SatEx_classified_scene")
+
+                test_print+=1
+                print test_print
 
             except:
                 self.errorMsg(e)
