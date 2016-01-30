@@ -352,13 +352,11 @@ class SatEx:
             self.ntasks = 3
             #Get user edits and check if not empty
             valid_input=self.updatePForm()
-            #self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
 
             import utils
             import traceback
             import qgis.core
             import ogr
-            #import subprocess
 
             try:
                 import otbApplication
@@ -367,29 +365,24 @@ class SatEx:
 
             #find the number of different L8 scenes
             #by reading all TIFs splitting off '_Bxy.TIF' and getting unique strings
-            e = 'unspecified error'
+            e = 'Unspecified error'
             #instantiate utilities function
             ut = utils.utils()
             try:
-                test_print=0
                 try:
                     #check if input is not empty string
                     1/valid_input
-                except Exception as e:
+                except ZeroDivisionError:
                     e = str('Please fill all required input fields')
                     raise Exception
-                test_print+=1
-                print test_print
 
                 try:
                     #delete any old tmp files that might be in the directory from a killed task
                     old=ut.delete_tmps(self.ls_path)
                     if old > 0: qgis.core.QgsMessageLog.logMessage('Old *satexTMP* files were present. They were deleted.')
                 except:
-                    e = str('Could not delete old *satexTMP* files.')
+                    e = str('Could not delete old *satexTMP* files. Function utils.delete_tmps.')
                     raise Exception
-                test_print+=1
-                print test_print
 
                 try:
                     pattern = '*.TIF'
@@ -398,14 +391,11 @@ class SatEx:
                         pattern = '*.tif'
                         scenes = set(['_'.join(s.split('_')[:1]) for s in ut.findFiles(self.ls_path,pattern)])
                     1/len(scenes)
-                except Exception as e:
+                except ZeroDivisionError:
                     e = str('Found no scene in {}'.format(self.ls_path))
                     raise Exception
                 else:
                     qgis.core.QgsMessageLog.logMessage(str('Found {} scene(s) in {}'.format(len(scenes),self.ls_path)))
-
-                test_print+=1
-                print test_print
 
                 #check shapefile roi
                 try:
@@ -413,11 +403,9 @@ class SatEx:
                     dataSource = driver.Open(self.roi,0)
                     layer = dataSource.GetLayer()
                     qgis.core.QgsMessageLog.logMessage(str('Using {} as ROI'.format(self.roi)))
-                except Exception as e:
+                except AttributeError:
                     e = str('Could not open {}'.format(self.roi))
                     raise Exception
-                test_print+=1
-                print test_print
 
                 #loop through all scenes
                 out_files = []
@@ -446,8 +434,6 @@ class SatEx:
                                 qgis.core.QgsMessageLog.logMessage(str('Found {} bands (if present, excluding B8 and BQA) for scene {} '.format(len(bands),scene)))
                     except:
                         raise Exception
-                    test_print+=1
-                    print test_print
 
                     #Check if ROI and scene overlap
                     try:
@@ -461,46 +447,39 @@ class SatEx:
                     else:
                         try:
                             1/overlap
-                        except:
+                        except ZeroDivisionError:
                             e = str('The provided ROI {} does not overlap with scene {}'.format(self.roi,scene))
                             raise Exception
-
-                    test_print+=1
-                    print test_print
 
                     #use gdalwarp to cut bands to roi
                     try:
                         #go through bands
                         for band in bands:
-                            qgis.core.QgsMessageLog.logMessage(str('Cropping band {} to ROI'.format(band)))
                             cmd = ['gdalwarp','-overwrite','-q','-cutline',self.roi,'-crop_to_cutline',self.ls_path+band,self.ls_path+band[:-4]+'_satexTMP_ROI'+pattern[1:]]
                             subprocess.check_call(cmd,startupinfo=self.startupinfo)
-                    except Exception as e:
-                        e = str('Could not execute gdalwarp cmd: {}'.format(' '.join(cmd)))
+                            qgis.core.QgsMessageLog.logMessage(str('Cropped band {} to ROI'.format(band)))
+                    except subprocess.CalledProcessError:
+                        e = str('Could not execute gdalwarp cmd: {}.\nError is:{}'.format(' '.join(cmd),error))
                         raise Exception
-
-                    test_print+=1
-                    print test_print
 
                     # Layerstack
                     try:
                         #respect order B1,B2,B3,B4,B5,B6,B7,B9,B10,B11
                         in_files = [str(self.ls_path+b[:-4]+'_satexTMP_ROI'+pattern[1:]) for b in bands]
                         in_files.sort()
-                        #B10,B11 considered smaller --> resort
-                        in_files = in_files[2:] + in_files[0:2]
+                        if nr_bands==10:
+                            # For Landsat 8 B10,B11 considered smaller --> resort
+                            in_files = in_files[2:] + in_files[0:2]
                         out_file = str(os.path.dirname(self.out_fname)+'/'+scene+'_satex_mul'+pattern[1:])
                         #call otb wrapper
-                        ut.otb_concatenate(in_files,out_file)
+                        error = ut.otb_concatenate(in_files,out_file)
+                        if error!='success': raise ZeroDivisionError
                         #append file to list
                         out_files.append(out_file)
                         qgis.core.QgsMessageLog.logMessage(str('Concatenated bands for scene {}'.format(scene)))
-                    except Exception as e:
-                        e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}'.format(scene,in_files,out_file))
+                    except ZeroDivisionError:
+                        e = str('Could not execute OTB ConcatenateImages for scene: {}\nin_files: {}\nout_file: {}. \nError is: {}'.format(scene,in_files,out_file,error))
                         raise Exception
-
-                    test_print+=1
-                    print test_print
 
                 # after all scenes were processed combine them to a virtual raster tile
                 try:
@@ -509,24 +488,22 @@ class SatEx:
                         cmd.append(f)
                     subprocess.check_call(cmd,startupinfo=self.startupinfo)
                     qgis.core.QgsMessageLog.logMessage(str('Merged {} different scenes to {}'.format(len(out_files),self.out_fname)))
-                except:
+                except subprocess.CalledProcessError:
                     e = str('Could not execute gdalbuildvrt cmd: {}'.format(' '.join(cmd)))
                     raise Exception
-                test_print+=1
-                print test_print
-
 
                 #add to map canvas if checked
                 if self.Pdlg.checkBox.isChecked():
-                    self.iface.addRasterLayer(str(self.out_fname), "SatEx_vrt")
-
-                test_print+=1
-                print test_print
+                    try:
+                        self.iface.addRasterLayer(str(self.out_fname), "SatEx_vrt")
+                    except:
+                        e = str('Could not add {} to the layer canvas'.format(self.out_fname))
+                        raise Exception
 
             except:
                 self.errorMsg(e)
                 qgis.core.QgsMessageLog.logMessage(str('Exception: {}'.format(e)))
-                qgis.core.QgsMessageLog.logMessage(str('Exception: Deleting temporary files'))
+                qgis.core.QgsMessageLog.logMessage(str('Exception occurred...deleting temporary files'))
                 ut.delete_tmps(self.ls_path)
             else:
                 qgis.core.QgsMessageLog.logMessage(str('Processing sucessfully completed'))
@@ -549,10 +526,6 @@ class SatEx:
             import ogr
             #import subprocess
 
-            self.processed = 0
-            self.percentage = 0
-            #TODO:fix
-            self.ntasks = 3
             #Get user edits
             valid_input=self.updateCForm()
             #TODO:fix
@@ -565,21 +538,17 @@ class SatEx:
             except:
                 self.errorMsg('Plugin requires installation of OrfeoToolbox')
 
-            e = 'unspecified error'
+            e = 'Unspecified error'
             try:
                 #instantiate utilities functions
                 ut = utils.utils()
-                test_print = 0
 
                 try:
                     #check if input is not empty string
                     1/valid_input
-                except Exception as e:
+                except ZeroDivisionError:
                     e = str('Please fill all required input fields')
                     raise Exception
-
-                test_print+=1
-                print test_print
 
                 #check if training fields overlap with raster
                 if not self.external:
@@ -594,21 +563,18 @@ class SatEx:
                     else:
                         try:
                             1/overlap
-                        except:
+                        except ZeroDivisionError:
                             e = str('At least one feature in {} does not overlap with {}'.format(self.in_train,self.raster))
                             raise Exception
-
-                test_print+=1
-                print test_print
 
                 #generate image statistics
                 try:
                     self.stats = str(self.raster[:-4]+'_stats.xml')
-                    ut.otb_image_statistics(str(self.raster),str(self.stats))
+                    error=ut.otb_image_statistics(str(self.raster),str(self.stats))
+                    if error!='success':raise ZeroDivisionError
                     qgis.core.QgsMessageLog.logMessage(str('Calculated image statistics {} for {}'.format(self.stats,self.raster)))
-                    #self.calculate_progress()
-                except:
-                    e = str('Could not execute OTB Image Statistics on: {}'.format(self.raster))
+                except ZeroDivisionError:
+                    e = str('Could not execute OTB Image Statistics on: {}. \nError is:{}'.format(self.raster,error))
                     raise Exception
 
                 #differntiate two cases case 1) external SVM provided an case 2) on the fly SVM training
@@ -630,38 +596,32 @@ class SatEx:
                     #train classifier
                     #on the fly (wrong) confusion matrix gets overwritten later
                     try:
-                        ut.otb_train_classifier(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix)
+                        error=ut.otb_train_classifier(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix)
+                        if error!='success': raise ZeroDivisionError
                         qgis.core.QgsMessageLog.logMessage(str('Trained image classifier using {} and {}'.format(self.raster,self.train)))
-                    except Exception as e:
-                        e = 'Could not execute OTB TrainClassifiers with {} {} {} {} {} {} {}'.format(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix)
+                    except ZeroDivisionError:
+                        e = 'Could not execute OTB TrainClassifiers with {} {} {} {} {} {} {}. \nError is:{}'.format(self.raster, self.train, self.stats, self.classification_type, self.label, self.svmModel, self.ConfMatrix,error)
                         raise Exception
-
-                test_print+=1
-                print test_print
 
                 #classify image
                 try:
-                    ut.otb_classification(self.raster, self.stats, self.svmModel, self.out_fname)
+                    error=ut.otb_classification(self.raster, self.stats, self.svmModel, self.out_fname)
+                    if error!='success': raise ZeroDivisionError
                     qgis.core.QgsMessageLog.logMessage(str('Image {} classified as {}'.format(self.raster,self.out_fname)))
-                except Exception as e:
-                    e = 'Could not execute OTB Classifier with {}, {}, {}, {}'.format(self.raster, self.stats, self.svmModel, self.out_fname)
+                except ZeroDivisionError:
+                    e = 'Could not execute OTB Classifier with {}, {}, {}, {}. \n Error is: {}'.format(self.raster, self.stats, self.svmModel, self.out_fname,error)
                     raise Exception
-
-                test_print+=1
-                print test_print
 
                 #confusion matrix
                 try:
                     #testing is optional in case of externally provided SVM
                     if self.in_train!='':
-                        ut.otb_confusion_matrix(self.out_fname,self.ConfMatrix,self.test,self.label)
+                        error=ut.otb_confusion_matrix(self.out_fname,self.ConfMatrix,self.test,self.label)
+                        if error!='success':raise ZeroDivisionError
                         qgis.core.QgsMessageLog.logMessage(str('Confusion matrix calculated on classified image {} with test set {} saved as {}'.format(self.out_fname,self.test,self.ConfMatrix)))
-                except Exception as e:
-                    e = 'Could not execute OTB Confusion Matrix with {}, {}, {}, {}'.format(self.out_fname, self.ConfMatrix, self.test, self.label)
+                except ZeroDivisionError:
+                    e = 'Could not execute OTB Confusion Matrix with {}, {}, {}, {}. \nError is: {}'.format(self.out_fname, self.ConfMatrix, self.test, self.label)
                     raise Exception
-
-                test_print+=1
-                print test_print
 
                 #if sieving is asked perform sieving
                 if self.Cdlg.checkBox_3.isChecked():
@@ -671,27 +631,21 @@ class SatEx:
                         else:
                             cmd = ['gdal_sieve.py','-q','-st',str(self.sieve),'-8',str(self.out_fname)]
                         subprocess.check_call(cmd,startupinfo=self.startupinfo)
-                    except Exception as e:
+                    except subprocess.CalledProcessError:
                         e = 'Could not execute {}'.format(cmd)
                         raise Exception
 
-                test_print+=1
-                print test_print
-
                 #add to map canvas if checked
                 if self.Cdlg.checkBox_2.isChecked():
-                    self.iface.addRasterLayer(str(self.out_fname), "SatEx_classified_scene")
-
-                test_print+=1
-                print test_print
+                    try:
+                        self.iface.addRasterLayer(str(self.out_fname), "SatEx_classified_scene")
+                    except:
+                        e = str('Could not add {} to the layer canvas'.format(self.out_fname))
+                        raise Exception
 
             except:
                 self.errorMsg(e)
                 qgis.core.QgsMessageLog.logMessage(e)
-                qgis.core.QgsMessageLog.logMessage(str('Exception: Deleting temporary files'))
-                #ut.delete_tmps(self.ls_path)
             else:
                 qgis.core.QgsMessageLog.logMessage(str('Processing completed'))
-                qgis.core.QgsMessageLog.logMessage(str('Deleting temporary files'))
                 self.iface.messageBar().pushMessage('Processing successfully completed, see log for details',self.iface.messageBar().SUCCESS,duration=3)
-                #ut.delete_tmps(self.ls_path)

@@ -160,87 +160,37 @@ class utils(object):
         input: - input files as list of strings
                - output file name
         '''
-        ConcatenateImages = otbApplication.Registry.CreateApplication("ConcatenateImages")
+        error = 'Unspecified error'
+        try:
+            try:
+                ConcatenateImages = otbApplication.Registry.CreateApplication("ConcatenateImages")
+            except Exception as error:
+                raise Exception
+            # The following lines set all the application parameters:
+            try:
+                ConcatenateImages.SetParameterStringList("il", [str(s) for s in in_files])
+            except Exception as error:
+                raise Exception
+            try:
+                ConcatenateImages.SetParameterString("out", str(out_file))
+            except Exception as error:
+                raise Exception
+            try:
+                ConcatenateImages.SetParameterOutputImagePixelType("out", 2)
+            except Exception as error:
+                raise Exception
 
-        # The following lines set all the application parameters:
-        ConcatenateImages.SetParameterStringList("il", [str(s) for s in in_files])
-        ConcatenateImages.SetParameterString("out", str(out_file))
-        ConcatenateImages.SetParameterOutputImagePixelType("out", 2)
-        # The following line execute the application
-        ConcatenateImages.ExecuteAndWriteOutput()
-
-    def otb_resample(self,in_file,out_file):
-        '''
-        Wrapper for OTB RigidTransformResample doubles x,y resolution
-        input: - input file name
-               - output file name
-        '''
-        # The following line creates an instance of the RigidTransformResample application
-        RigidTransformResample = otbApplication.Registry.CreateApplication("RigidTransformResample")
-
-        # The following lines set all the application parameters:
-        RigidTransformResample.SetParameterString("in", in_file)
-        RigidTransformResample.SetParameterString("out", out_file)
-        RigidTransformResample.SetParameterString("transform.type","id")
-        RigidTransformResample.SetParameterFloat("transform.type.id.scalex", 2.)
-        RigidTransformResample.SetParameterFloat("transform.type.id.scaley", 2.)
-        RigidTransformResample.SetParameterOutputImagePixelType("out", 2)
-
-        # The following line execute the application
-        RigidTransformResample.ExecuteAndWriteOutput()
-
-    def otb_superimpose(self,in_file_ref,in_file_inm,out_file):
-        '''
-        Wrapper for OTB Superimpose using bicubic interpolation
-        input: - in_file_ref input file as reference
-               - in_file_inm input file to superimpose
-               - output file name
-        '''
-	# The following line creates an instance of the Superimpose application
-        Superimpose = otbApplication.Registry.CreateApplication("Superimpose")
-        # The following lines set all the application parameters:
-        Superimpose.SetParameterString("inr", in_file_ref)
-        Superimpose.SetParameterString("inm", in_file_inm)
-        Superimpose.SetParameterString("out", out_file)
-        Superimpose.SetParameterString("interpolator","bco")
-        Superimpose.SetParameterString("interpolator.bco.radius","2")
-        Superimpose.SetParameterOutputImagePixelType("out", 2)
-        # The following line execute the application
-        Superimpose.ExecuteAndWriteOutput()
-
-    def otb_pansharpen(self,in_file_pan,in_file_mul,out_file):
-        '''
-        Wrapper for OTB Pansharpen
-        input: - input panchromatic file
-               - input multiband file
-               - output file name
-        '''
-        # The following line creates an instance of the Pansharpening application
-        Pansharpening = otbApplication.Registry.CreateApplication("Pansharpening")
-
-        # The following lines set all the application parameters:
-        Pansharpening.SetParameterString("inp", in_file_pan)
-        Pansharpening.SetParameterString("inxs", in_file_mul)
-        Pansharpening.SetParameterString("out", out_file)
-        Pansharpening.SetParameterOutputImagePixelType("out", 2)
-        # The following line execute the application
-        Pansharpening.ExecuteAndWriteOutput()
-
-    def otb_split(self,in_file_mul,out_file):
-        '''
-        Wrapper for OTB SplitImage
-        input: - input multiband file
-               - output file name
-        '''
-        # The following line creates an instance of the Pansharpening application
-        SplitImage = otbApplication.Registry.CreateApplication("SplitImage")
-
-        # The following lines set all the application parameters:
-        SplitImage.SetParameterString("in", in_file_mul)
-        SplitImage.SetParameterString("out", out_file)
-        SplitImage.SetParameterOutputImagePixelType("out", 2)
-        # The following line execute the application
-        SplitImage.ExecuteAndWriteOutput()
+            # The following line executes the application
+            try:
+                ConcatenateImages.ExecuteAndWriteOutput()
+            except Exception as error:
+                raise Exception
+        except:
+            #Get's catched one level higher
+            pass
+        else:
+            error = 'success'
+        return error
 
     ###################################################
     # Classification functions
@@ -361,70 +311,206 @@ class utils(object):
         '''
         Compute image statistics and store as xml file
         '''
-        # The following line creates an instance of the ComputeImagesStatistics application
-        ComputeImagesStatistics = otbApplication.Registry.CreateApplication("ComputeImagesStatistics")
-
-        # The following lines set all the application parameters:
-        ComputeImagesStatistics.SetParameterStringList("il", [str(input_raster)])
-        ComputeImagesStatistics.SetParameterString("out", str(statistics_xml))
-
-        # The following line execute the application
-        ComputeImagesStatistics.ExecuteAndWriteOutput()
+        error = 'Unspecified error'
+        try:
+            try:
+                # The following line creates an instance of the ComputeImagesStatistics application
+                ComputeImagesStatistics = otbApplication.Registry.CreateApplication("ComputeImagesStatistics")
+            except Exception as error:
+                raise Exception
+            
+            # The following lines set all the application parameters:
+            try:
+                ComputeImagesStatistics.SetParameterStringList("il", [str(input_raster)])
+            except Exception as error:
+                raise Exception
+            try:     
+                ComputeImagesStatistics.SetParameterString("out", str(statistics_xml))
+            except Exception as error:
+                raise Exception
+            try:
+                # The following line execute the application
+                ComputeImagesStatistics.ExecuteAndWriteOutput()
+            except Exception as error:
+                raise Exception
+        except:
+            #Get's catched one level higher
+            pass
+        else:
+            error = 'success'
+        return error
 
 
     def otb_train_classifier(self,input_raster, input_shape, statistics_xml, classification_type, training_label, output_svm, confusion_matrix_csv):
         '''
         Training the classifier
         '''
-        # The following line creates an instance of the TrainImagesClassifier application
-        TrainImagesClassifier = otbApplication.Registry.CreateApplication("TrainImagesClassifier")
-        # The following lines set all the application parameters:
-        TrainImagesClassifier.SetParameterStringList("io.il", [str(input_raster)])
-        TrainImagesClassifier.SetParameterStringList("io.vd", [str(input_shape)])
-        TrainImagesClassifier.SetParameterString("io.imstat", str(statistics_xml))
-        TrainImagesClassifier.SetParameterInt("sample.mv", 100)
-        TrainImagesClassifier.SetParameterInt("sample.mt", 100)
-        TrainImagesClassifier.SetParameterFloat("sample.vtr", 0.0)
-        TrainImagesClassifier.SetParameterString("sample.edg","1")
-        TrainImagesClassifier.SetParameterString("sample.vfn", str(training_label))
-        TrainImagesClassifier.SetParameterString("classifier", str(classification_type))
-        TrainImagesClassifier.SetParameterString("classifier.libsvm.k","linear")
-        TrainImagesClassifier.SetParameterFloat("classifier.libsvm.c", 1)
-        TrainImagesClassifier.SetParameterString("classifier.libsvm.opt","1")
-        TrainImagesClassifier.SetParameterString("io.out", str(output_svm))
-        TrainImagesClassifier.SetParameterString("io.confmatout", str(confusion_matrix_csv))
+        error = 'Unspecified error'
+        try:
+            try:
+                # The following line creates an instance of the TrainImagesClassifier application
+                TrainImagesClassifier = otbApplication.Registry.CreateApplication("TrainImagesClassifier")
+            except Exception as error:
+                raise Exception
+                # The following lines set all the application parameters:
+            try:
+                TrainImagesClassifier.SetParameterStringList("io.il", [str(input_raster)])
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterStringList("io.vd", [str(input_shape)])
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("io.imstat", str(statistics_xml))
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterInt("sample.mv", 100)
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterInt("sample.mt", 100)
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterFloat("sample.vtr", 0.0)
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("sample.edg","1")
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("sample.vfn", str(training_label))
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("classifier", str(classification_type))
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("classifier.libsvm.k","linear")
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterFloat("classifier.libsvm.c", 1)
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("classifier.libsvm.opt","1")
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("io.out", str(output_svm))
+            except Exception as error:
+                raise Exception
+            try:
+                TrainImagesClassifier.SetParameterString("io.confmatout", str(confusion_matrix_csv))
+            except Exception as error:
+                raise Exception
 
-        # The following line execute the application
-        TrainImagesClassifier.ExecuteAndWriteOutput()
+                # The following line execute the application
+            try:
+                TrainImagesClassifier.ExecuteAndWriteOutput()
+            except Exception as error:
+                raise Exception
 
+        except:
+            #Get's catched one level higher
+            pass
+        else:
+            error = 'success'
+        return error
 
     def otb_classification(self,input_raster, statistics_xml, input_svm, output_raster):
         '''
         Classification using the trained classifier
         '''
-        ImageClassifier = otbApplication.Registry.CreateApplication("ImageClassifier")
+        error = 'Unspecified error'
+        try:
+            try:
+                ImageClassifier = otbApplication.Registry.CreateApplication("ImageClassifier")
+            except Exception as error:
+                raise Exception
 
-        # The following lines set all the application parameters:
-        ImageClassifier.SetParameterString("in", str(input_raster))
-        ImageClassifier.SetParameterString("imstat", str(statistics_xml))
-        ImageClassifier.SetParameterString("model", str(input_svm))
-        ImageClassifier.SetParameterString("out", str(output_raster))
+                # The following lines set all the application parameters:
+            try:
+                ImageClassifier.SetParameterString("in", str(input_raster))
+            except Exception as error:
+                raise Exception
+            try:
+                ImageClassifier.SetParameterString("imstat", str(statistics_xml))
+            except Exception as error:
+                raise Exception
+            try:
+                ImageClassifier.SetParameterString("model", str(input_svm))
+            except Exception as error:
+                raise Exception
+            try:
+                ImageClassifier.SetParameterString("out", str(output_raster))
+            except Exception as error:
+                raise Exception
 
-        # The following line execute the application
-        ImageClassifier.ExecuteAndWriteOutput()
+                # The following line execute the application
+            try:
+                ImageClassifier.ExecuteAndWriteOutput()
+            except Exception as error:
+                raise Exception
+        except:
+            #Get's catched one level higher
+            pass
+        else:
+            error = 'success'
+        return error
 
 
     def otb_confusion_matrix(self,class_raster,out_conf_mat,test_vector,label):
-        # The following line creates an instance of the ComputeConfusionMatrix application
-        ComputeConfusionMatrix = otbApplication.Registry.CreateApplication("ComputeConfusionMatrix")
-        # The following lines set all the application parameters:
-        ComputeConfusionMatrix.SetParameterString("in", str(class_raster))
-        ComputeConfusionMatrix.SetParameterString("out", str(out_conf_mat))
-        ComputeConfusionMatrix.SetParameterString("ref","vector")
-        ComputeConfusionMatrix.SetParameterString("ref.vector.in", str(test_vector))
-        ComputeConfusionMatrix.SetParameterString("ref.vector.field", str(label))
-        ComputeConfusionMatrix.SetParameterInt("nodatalabel", 0)
+        '''
+        Computing a confusion matrix using the test_vector and labeled raster
+        '''
+        error = 'Unspecified error'
+        try:
+            try:
+                # The following line creates an instance of the ComputeConfusionMatrix application
+                ComputeConfusionMatrix = otbApplication.Registry.CreateApplication("ComputeConfusionMatrix")
+            except Exception as error:
+                raise Exception
+            try:
+                # The following lines set all the application parameters:
+                ComputeConfusionMatrix.SetParameterString("in", str(class_raster))
+            except Exception as error:
+                raise Exception
+            try:
+                ComputeConfusionMatrix.SetParameterString("out", str(out_conf_mat))
+            except Exception as error:
+                raise Exception
+            try:
+                ComputeConfusionMatrix.SetParameterString("ref","vector")
+            except Exception as error:
+                raise Exception
+            try:
+                ComputeConfusionMatrix.SetParameterString("ref.vector.in", str(test_vector))
+            except Exception as error:
+                raise Exception
+            try:
+                ComputeConfusionMatrix.SetParameterString("ref.vector.field", str(label))
+            except Exception as error:
+                raise Exception
+            try:
+                ComputeConfusionMatrix.SetParameterInt("nodatalabel", 0)
+            except Exception as error:
+                raise Exception
 
-        # The following line execute the application
-        ComputeConfusionMatrix.ExecuteAndWriteOutput()
+                # The following line execute the application
+            try:
+                ComputeConfusionMatrix.ExecuteAndWriteOutput()
+            except Exception as error:
+                raise Exception
+        except:
+            #Get's catched one level higher
+            pass
+        else:
+            error = 'success'
+        return error
 
