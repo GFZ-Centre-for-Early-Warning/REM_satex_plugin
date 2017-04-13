@@ -52,7 +52,7 @@
     <number>0</number>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Classification of layerstacked L8 scene (Input raster) using a SVM either directly (External SVM Model) or by providing a ground truth vector layer (Training/Testing vector) whose features are used for training and testing.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Classification of layerstacked Landsat scene (Input raster) using a SVM either directly (External SVM Model) or by providing a ground truth vector layer (Training/Testing vector) whose features are used for training and testing.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
    <property name="wordWrap">
     <bool>true</bool>

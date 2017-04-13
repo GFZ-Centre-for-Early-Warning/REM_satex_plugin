@@ -1,22 +1,31 @@
 #/***************************************************************************
 # SatEx
-#
-# L8 processing towards exposure
-#							 -------------------
-#		begin				: 2015-12-14
-#		git sha				: $Format:%H$
-#		copyright			: (C) 2015 by GFZ Michael Haas
-#		email				: mhaas@gfz-potsdam.de
+#                                 A QGIS plugin
+#Streamlined algorithms for pixel based classification of Landsat satellite 
+#imagery using OTB.
+#                              -------------------
+#        begin                : 2015-12-14
+#        git sha              : $Format:%H$
+#        copyright            : (C) 2016 by Michael Haas (GFZ)
+#        email                : mhaas@gfz-potsdam.de
 # ***************************************************************************/
 #
-#/***************************************************************************
-# *																		 *
-# *   This program is free software; you can redistribute it and/or modify  *
-# *   it under the terms of the GNU General Public License as published by  *
-# *   the Free Software Foundation; either version 2 of the License, or	 *
-# *   (at your option) any later version.								   *
-# *																		 *
-# ***************************************************************************/
+#/****************************************************************************
+# *                                                                          *
+# *    This program is free software: you can redistribute it and/or modify  *
+# *    it under the terms of the GNU General Public License as published by  *
+# *    the Free Software Foundation, either version 3 of the License, or     *
+# *    (at your option) any later version.                                   *
+# *                                                                          *
+# *    This program is distributed in the hope that it will be useful,       *
+# *    but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+# *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+# *    GNU General Public License for more details.                          *
+# *                                                                          *
+# *    You should have received a copy of the GNU General Public License     *
+# *    along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+# *                                                                          *
+# ****************************************************************************/
 
 #################################################
 # Edit the following to match your sources lists
@@ -38,17 +47,17 @@ LOCALES =
 # translation
 SOURCES = \
 	__init__.py \
-	preprocessing.py preprocessing_dialog.py
+	satex.py satex_dialog.py utils.py
 
 PLUGINNAME = SatEx
 
 PY_FILES = \
 	__init__.py \
-	preprocessing.py preprocessing_dialog.py
+	satex.py satex_dialog.py utils.py
 
-UI_FILES = preprocessing_dialog_base.ui
+UI_FILES = preprocessing.ui classification.ui
 
-EXTRAS = metadata.txt icon.png
+EXTRAS = metadata.txt icon_preprocessing.png icon_classification.png
 
 COMPILED_RESOURCE_FILES = resources.py
 

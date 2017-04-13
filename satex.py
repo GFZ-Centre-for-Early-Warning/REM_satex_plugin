@@ -8,18 +8,26 @@ imagery using OTB.
                               -------------------
         begin                : 2015-12-14
         git sha              : $Format:%H$
-        copyright            : (C) 2015 by GFZ Michael Haas
+        copyright            : (C) 2016 by Michael Haas (GFZ)
         email                : mhaas@gfz-potsdam.de
  ***************************************************************************/
 
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
+/****************************************************************************
+ *                                                                          *
+ *    This program is free software: you can redistribute it and/or modify  *
+ *    it under the terms of the GNU General Public License as published by  *
+ *    the Free Software Foundation, either version 3 of the License, or     *
+ *    (at your option) any later version.                                   *
+ *                                                                          *
+ *    This program is distributed in the hope that it will be useful,       *
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+ *    GNU General Public License for more details.                          *
+ *                                                                          *
+ *    You should have received a copy of the GNU General Public License     *
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+ *                                                                          *
+ ****************************************************************************/
 """
 import PyQt4.QtCore
 import PyQt4.QtGui
@@ -103,6 +111,9 @@ class SatEx:
         #Prefent bug in directory search (added / on linux results in searching the root directory)
         self.Pdlg.lineEdit.setText(' ')
         #TODO:defaults for development
+        #self.Pdlg.lineEdit.setText('C:\Users\michael\Desktop\plugin data\LC81680542015357LGN00')
+        #self.Pdlg.lineEdit_2.setText('C:/Users/michael/Desktop/plugin data/adisababa.shp')
+        #self.Pdlg.lineEdit_3.setText('C:/Users/michael/Desktop/test.vrt')
         #self.Pdlg.lineEdit.setText('/home/mhaas/PhD/Routines/rst/plugin/data/LC81680542015357LGN00/')
         #self.Pdlg.lineEdit_2.setText('/home/mhaas/PhD/Routines/rst/plugin/data/adisababa.shp')
         #self.Pdlg.lineEdit_3.setText('/home/mhaas/test/test.vrt')
@@ -292,16 +303,6 @@ class SatEx:
             filename = filename+'.tif'
         self.Cdlg.lineEdit_3.setText(filename)
 
-
-    #def calculate_progress(self):
-    #    self.processed = self.processed + 1
-    #    percentage_new = (self.processed * 100) / self.ntasks
-    #    if percentage_new > self.percentage:
-    #        self.percentage = percentage_new
-
-    #def updateTextbox(self,msg):
-    #    self.textBrowser.append(msg)
-
     def switch_external_SVM(self):
         '''
         Activates the external SVM dialog parts
@@ -310,15 +311,11 @@ class SatEx:
             self.Cdlg.lineEdit_4.setEnabled(True)
             self.Cdlg.pushButton_4.setEnabled(True)
             self.Cdlg.label_5.setEnabled(True)
-            #self.Cdlg.lineEdit_5.setDisabled(True)
-            #self.Cdlg.label_6.setDisabled(True)
             self.external=True
         else:
             self.Cdlg.lineEdit_4.setDisabled(True)
             self.Cdlg.pushButton_4.setDisabled(True)
             self.Cdlg.label_5.setDisabled(True)
-            #self.Cdlg.lineEdit_5.setEnabled(True)
-            #self.Cdlg.label_6.setEnabled(True)
             self.external=False
 
     def switch_sieve(self):
@@ -331,17 +328,12 @@ class SatEx:
         import webbrowser
         import sys
         import os
-        import inspect
 
         source = sys.modules['SatEx'].__file__
-        #source = inspect.currentframe().f_back.f_code.co_filename
-        #sys.modules['SatEx'].__file__
         path = os.path.dirname(source)
-        #helpfile  os.path.join(path, '/help/html/index-en.html')
         helpfile = path+'/help/html/index.html'
         url = "file://" + helpfile
         webbrowser.open(url,new=2)
-        #qgis.utils.showPluginHelp(packageName='SatEx')
 
     def errorMsg(self,msg):
         self.iface.messageBar().pushMessage('Error: '+ msg,self.iface.messageBar().CRITICAL)
@@ -360,13 +352,11 @@ class SatEx:
             self.ntasks = 3
             #Get user edits and check if not empty
             valid_input=self.updatePForm()
-            #self.Pdlg.startWorker(self.iface, self.ls_path, self.roi, self.out_fname)
 
             import utils
             import traceback
             import qgis.core
             import ogr
-            #import subprocess
 
             try:
                 import otbApplication
@@ -567,6 +557,7 @@ class SatEx:
                     except:
                         e = str('Unspecified error while trying to execute utils.vector_raster_overlap function')
                         raise Exception
+
                     if error!='SUCCESS':
                         e = error
                         raise Exception

@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/plugins/SatEx" >
-        <file>icon.png</file>
+        <file>icon_preprocessing.png</file>
+        <file>icon_classification.png</file>
     </qresource>
 </RCC>
