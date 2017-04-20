@@ -373,16 +373,20 @@ class utils(object):
                 TrainImagesClassifier.SetParameterInt("sample.mt", 100)
             except Exception as error:
                 raise Exception
+            #try:
+            #    TrainImagesClassifier.SetParameterFloat("sample.vtr", 0.1)
+            #except Exception as error:
+            #    raise Exception
+            #try:
+            #    TrainImagesClassifier.SetParameterString("sample.edg","1")
+            #except Exception as error:
+            #    raise Exception
             try:
-                TrainImagesClassifier.SetParameterFloat("sample.vtr", 0.0)
+                TrainImagesClassifier.UpdateParameters()
             except Exception as error:
                 raise Exception
             try:
-                TrainImagesClassifier.SetParameterString("sample.edg","1")
-            except Exception as error:
-                raise Exception
-            try:
-                TrainImagesClassifier.SetParameterString("sample.vfn", str(training_label))
+                TrainImagesClassifier.SetParameterStringList("sample.vfn", [str(training_label)])
             except Exception as error:
                 raise Exception
             try:
@@ -491,6 +495,10 @@ class utils(object):
                 raise Exception
             try:
                 ComputeConfusionMatrix.SetParameterString("ref.vector.in", str(test_vector))
+            except Exception as error:
+                raise Exception
+            try:
+                ComputeConfusionMatrix.UpdateParameters()
             except Exception as error:
                 raise Exception
             try:
